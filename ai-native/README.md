@@ -108,6 +108,8 @@ Dùng `no-mistakes doctor` làm chuẩn.
 - `no-mistakes/global-config.yaml` thành `~/.no-mistakes/config.yaml`: agent Pi, model rẻ cho mọi bước sửa, model mạnh chỉ để review, giới hạn thời gian cứng cho mọi agent, `auto_fix.review: 0` để mọi phát hiện của review đều qua người duyệt (không dùng `axi run --yes`, cờ này bỏ qua cổng đó).
 - `no-mistakes/project.no-mistakes.yaml` ghép với đoạn stack (`new-project.sh`, xem trên) thành `.no-mistakes.yaml` ở **nhánh mặc định** của repo, rồi `no-mistakes init`. Các trường điều khiển cổng (`commands`, `agent`, `gates`...) chỉ được đọc từ nhánh mặc định, nên phải merge file này trước khi chạy pipeline.
 - Bắt buộc có khối `commands` (prepare, lint, test) cho từng repo, các đoạn stack đã điền sẵn: môi trường chạy không có `node_modules` hay `.venv`, để trống thì lint có thể không chạy mà lượt vẫn qua. `ignore_patterns` dùng dạng `dist/**`, `*.lock`; dạng `**/dist/**` không khớp gì.
+- `max_concurrent_runs` trong `global-config.yaml` là 6 (số làn thuyền viên đồng thời): một run giữ slot khi đang dừng chờ quyết định ở cổng và khi theo dõi CI, nên giữ cap ≥ số làn; bộ nhớ chủ yếu do lệnh test và typecheck của từng dự án (khoảng 2,5-3 GB mỗi lệnh, jest còn hơn) chứ không do agent, nên chỉ nâng khi còn dư bộ nhớ.
+- Repo cần một phiên bản Node cụ thể thì ghim ngay trong từng mục `commands`: daemon đặt Node 24 lên đầu PATH và mọi lệnh chạy qua `sh -c`, nên PATH export ở ngoài không truyền sang; không dùng script lint có `--fix` làm lệnh cổng vì nó sửa cây làm việc.
 - Chỉ bật `disable_project_settings: true` cho repo điều phối agent như Firstmate. Repo thường cần để agent của cổng đọc `AGENTS.md` của chính nó.
 
 ## Quy ước

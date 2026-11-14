@@ -42,7 +42,10 @@ gate_reconcile_timeout: "30s"
 branch_sync_remote_timeout: "60s"
 
 # Parallel lanes share this one daemon: queue runs beyond this instead of starting them all at once.
-max_concurrent_runs: 4
+# A run holds its slot while parked at a gate and while monitoring CI, so keep the cap at or above the
+# number of lanes; memory use is dominated by each project's own test and typecheck commands (2.5 to 3 GB
+# each, more for jest) rather than by the agent, so raise it only with headroom.
+max_concurrent_runs: 6
 
 # One durable fixer session per run; review turns always stay session-free.
 session_reuse: true
