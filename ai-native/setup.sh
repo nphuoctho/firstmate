@@ -61,9 +61,15 @@ for kv in "backend:herdr" "crew-harness:pi"; do
   f="$CFG/${kv%%:*}"
   [ -s "$f" ] || { if act "config/${kv%%:*}=${kv##*:}"; then printf '%s\n' "${kv##*:}" >"$f"; fi; }
 done
-for p in crew-dispatch.json crew-exclude-tools; do
-  [ -s "$CFG/$p" ] || { if act "config/$p (preset)"; then cp "$ROOT/ai-native/presets/$p" "$CFG/$p"; fi; }
-done
+[ -s "$CFG/crew-dispatch.json" ] || { if act "config/crew-dispatch.json (preset)"; then cp "$ROOT/ai-native/presets/crew-dispatch.json" "$CFG/crew-dispatch.json"; fi; }
+harness=pi
+[ -s "$CFG/crew-harness" ] && harness=$(head -1 "$CFG/crew-harness" | tr -d '[:space:]')
+case "$harness" in
+claude | pi | pi-signed)
+  [ -s "$CFG/crew-exclude-tools" ] || { if act "config/crew-exclude-tools (preset)"; then cp "$ROOT/ai-native/presets/crew-exclude-tools" "$CFG/crew-exclude-tools"; fi; }
+  ;;
+*) say "skip config/crew-exclude-tools: crew-harness '$harness' cannot hide tools" ;;
+esac
 
 say "--- versions"
 for t in pi herdr no-mistakes tasks-axi gh-axi quota-axi lavish-axi chrome-devtools-axi; do
