@@ -29,6 +29,8 @@ Script cài: tool dòng lệnh của Firstmate (`gh-axi`, `chrome-devtools-axi`,
 | Chỉ bỏ `mcp` / chỉ bỏ `preview_export` | 17.521 / 18.057 | -1.404 / -868 |
 | Thêm `--no-skills` (không áp dụng được: thuyền viên cần skill `no-mistakes`) | 6.562 | -12.363 |
 
+Lưu ý: `mcp` và `preview_export` chỉ có mặt khi pi-mcp-adapter và pi-markdown-preview được nạp (đã đo trên Pi 1.5.2 với 5 gói cấp người dùng); trên máy thiếu hai gói này, mức tiết kiệm 2.272 chỉ mang tính tham khảo và danh sách loại không có tác dụng.
+
 Phần lớn chi phí còn lại (khoảng 12 nghìn token) là danh sách skill cấp người dùng trong `~/.agents/skills`; rút bớt skill ở đó là cách tiết kiệm lớn nhất, nhưng thuộc máy của anh nên kit không tự đổi. Không thêm `todo` vào danh sách loại (tiết kiệm 1.800 nhưng thuyền viên dùng nó); không loại `web_enable` (loại nó lại mở toàn bộ công cụ web, tăng 1.800).
 
 ## Gói Pi
