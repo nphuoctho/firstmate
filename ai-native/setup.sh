@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # AI Native base bootstrap: Pi Agent + Firstmate + Herdr + no-mistakes.
 # Idempotent. Usage: ai-native/setup.sh [--check]   (--check only reports, changes nothing)
+# FM_HOME and NM_HOME relocate the Firstmate config and the no-mistakes home (default: this repo, ~/.no-mistakes).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -52,12 +53,23 @@ if [ ! -s "$NM_HOME_DIR/config.yaml" ]; then
   fi
 fi
 
-# Firstmate local (gitignored) config: Pi workers on the Herdr backend.
-mkdir -p "$ROOT/config"
+# Firstmate local (gitignored) config: Pi workers on the Herdr backend, plus the dispatch and
+# tool-exclusion presets. Each file is written only when absent or empty, never overwritten.
+CFG="${FM_HOME:-$ROOT}/config"
+[ "$CHECK" = 1 ] || mkdir -p "$CFG"
 for kv in "backend:herdr" "crew-harness:pi"; do
-  f="$ROOT/config/${kv%%:*}"
+  f="$CFG/${kv%%:*}"
   [ -s "$f" ] || { if act "config/${kv%%:*}=${kv##*:}"; then printf '%s\n' "${kv##*:}" >"$f"; fi; }
 done
+[ -s "$CFG/crew-dispatch.json" ] || { if act "config/crew-dispatch.json (preset)"; then cp "$ROOT/ai-native/presets/crew-dispatch.json" "$CFG/crew-dispatch.json"; fi; }
+harness=pi
+[ -s "$CFG/crew-harness" ] && harness=$(tr -d '[:space:]' <"$CFG/crew-harness")
+case "$harness" in
+claude | pi | pi-signed | default)
+  [ -s "$CFG/crew-exclude-tools" ] || { if act "config/crew-exclude-tools (preset)"; then cp "$ROOT/ai-native/presets/crew-exclude-tools" "$CFG/crew-exclude-tools"; fi; }
+  ;;
+*) say "skip config/crew-exclude-tools: crew-harness '$harness' cannot hide tools" ;;
+esac
 
 say "--- versions"
 for t in pi herdr no-mistakes tasks-axi gh-axi quota-axi lavish-axi chrome-devtools-axi; do
