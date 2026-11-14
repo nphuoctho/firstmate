@@ -1,0 +1,13 @@
+# Go. Verified with no-mistakes v1.106.1 (real pipeline).
+# The lint form prints the offending files (a bare `test -z "$(gofmt -l .)"` fails with an empty summary).
+commands:
+  prepare: "go mod download"
+  lint: "gofmt -l . | (! grep .) && go vet ./..."
+  test: "go test ./..."
+  format: "gofmt -w ."
+ignore_patterns:
+  - "go.sum"
+  - "*.pb.go"
+  - "*.generated.*"
+  - "vendor/**"
+  - "bin/**"

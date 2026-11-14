@@ -9,11 +9,12 @@ CHECK=0
 [ "${1:-}" = "--check" ] && CHECK=1
 
 NPM_CLIS=(gh-axi chrome-devtools-axi lavish-axi quota-axi tasks-axi)
-# User-level packages load in every Pi process, workers included. pi-open-tui (replaces the composer,
-# so Firstmate cannot read it and a steer doorbell can land inside a human draft) and pi-lens
-# (~0.6-1.2 GB per worker) are primary-only: ai-native/pi-primary.sh loads them with -e.
-PI_PACKAGES=(pi-web-access pi-mcp-adapter pi-markdown-preview @juicesharp/rpiv-todo cc-safety-net)
-PRIMARY_ONLY=(pi-open-tui pi-lens)
+# User-level packages load in every Pi process, workers included, so only the cheap ones live here.
+# PRIMARY_ONLY packages cost per-request tokens or memory in every worker (todo ~1.7k tokens, mcp ~1.1k,
+# preview_export ~0.8k, pi-lens 0.6-1.2 GB) or break composer reads (pi-open-tui): ai-native/pi-primary.sh
+# loads them with -e for the primary session, and setup.sh removes any user-level copy.
+PI_PACKAGES=(pi-web-access cc-safety-net)
+PRIMARY_ONLY=(pi-open-tui pi-lens @juicesharp/rpiv-todo pi-mcp-adapter pi-markdown-preview)
 NM_HOME_DIR="${NM_HOME:-$HOME/.no-mistakes}"
 bad=0
 
@@ -53,8 +54,8 @@ if [ ! -s "$NM_HOME_DIR/config.yaml" ]; then
   fi
 fi
 
-# Firstmate local (gitignored) config: Pi workers on the Herdr backend, plus the dispatch and
-# tool-exclusion presets. Each file is written only when absent or empty, never overwritten.
+# Firstmate local (gitignored) config: Pi workers on the Herdr backend, plus the dispatch preset.
+# Each file is written only when absent or empty, never overwritten.
 CFG="${FM_HOME:-$ROOT}/config"
 [ "$CHECK" = 1 ] || mkdir -p "$CFG"
 for kv in "backend:herdr" "crew-harness:pi"; do
@@ -62,14 +63,6 @@ for kv in "backend:herdr" "crew-harness:pi"; do
   [ -s "$f" ] || { if act "config/${kv%%:*}=${kv##*:}"; then printf '%s\n' "${kv##*:}" >"$f"; fi; }
 done
 [ -s "$CFG/crew-dispatch.json" ] || { if act "config/crew-dispatch.json (preset)"; then cp "$ROOT/ai-native/presets/crew-dispatch.json" "$CFG/crew-dispatch.json"; fi; }
-harness=pi
-[ -s "$CFG/crew-harness" ] && harness=$(tr -d '[:space:]' <"$CFG/crew-harness")
-case "$harness" in
-claude | pi | pi-signed | default)
-  [ -s "$CFG/crew-exclude-tools" ] || { if act "config/crew-exclude-tools (preset)"; then cp "$ROOT/ai-native/presets/crew-exclude-tools" "$CFG/crew-exclude-tools"; fi; }
-  ;;
-*) say "skip config/crew-exclude-tools: crew-harness '$harness' cannot hide tools" ;;
-esac
 
 say "--- versions"
 for t in pi herdr no-mistakes tasks-axi gh-axi quota-axi lavish-axi chrome-devtools-axi; do

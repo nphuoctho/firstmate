@@ -1,3 +1,0 @@
-# Tool schemas are re-sent with every model request of a worker. Hide tools workers never call.
-preview_export
-mcp

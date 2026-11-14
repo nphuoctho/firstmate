@@ -1,0 +1,22 @@
+# Node / TypeScript. Verified with no-mistakes v1.106.1 (pnpm variant, real pipeline).
+# The npm form below has the same shape but was not run separately; swap in pnpm (`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test`) if the repo uses it.
+# Only pass runner flags the test script accepts (`--run` is a Vitest flag and breaks `node --test`).
+commands:
+  prepare: "npm ci"
+  lint: "npm run lint"
+  test: "npm test"
+  format: "npx prettier --write ."
+ignore_patterns:
+  - "*.lock"
+  - "package-lock.json"
+  - "pnpm-lock.yaml"
+  - "npm-shrinkwrap.json"
+  - "*.min.js"
+  - "*.min.css"
+  - "*.map"
+  - "*.generated.*"
+  - "dist/**"
+  - "build/**"
+  - ".next/**"
+  - "coverage/**"
+  - "node_modules/**"

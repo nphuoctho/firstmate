@@ -1,0 +1,14 @@
+# Rust with cargo. Lint and test commands exercised on a throwaway fixture and through one isolated
+# no-mistakes v1.106.1 pipeline run (see ai-native/README.md).
+# Lint includes the format check so an unformatted file fails the gate; `cargo fmt` is the fixer.
+commands:
+  prepare: "cargo fetch --locked"
+  lint: "cargo fmt --check && cargo clippy --all-targets -- -D warnings"
+  test: "cargo test"
+  format: "cargo fmt"
+ignore_patterns:
+  - "Cargo.lock"
+  - "*.lock"
+  - "*.generated.*"
+  - "target/**"
+  - "vendor/**"
