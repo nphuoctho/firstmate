@@ -63,9 +63,9 @@ for kv in "backend:herdr" "crew-harness:pi"; do
 done
 [ -s "$CFG/crew-dispatch.json" ] || { if act "config/crew-dispatch.json (preset)"; then cp "$ROOT/ai-native/presets/crew-dispatch.json" "$CFG/crew-dispatch.json"; fi; }
 harness=pi
-[ -s "$CFG/crew-harness" ] && harness=$(head -1 "$CFG/crew-harness" | tr -d '[:space:]')
+[ -s "$CFG/crew-harness" ] && harness=$(tr -d '[:space:]' <"$CFG/crew-harness")
 case "$harness" in
-claude | pi | pi-signed)
+claude | pi | pi-signed | default)
   [ -s "$CFG/crew-exclude-tools" ] || { if act "config/crew-exclude-tools (preset)"; then cp "$ROOT/ai-native/presets/crew-exclude-tools" "$CFG/crew-exclude-tools"; fi; }
   ;;
 *) say "skip config/crew-exclude-tools: crew-harness '$harness' cannot hide tools" ;;

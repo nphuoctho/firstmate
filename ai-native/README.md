@@ -9,7 +9,7 @@ ai-native/setup.sh --check   # chỉ báo thiếu gì
 ai-native/setup.sh           # cài phần thiếu, không ghi đè cấu hình đã chỉnh
 ```
 
-Script cài: tool dòng lệnh của Firstmate (`gh-axi`, `chrome-devtools-axi`, `lavish-axi`, `quota-axi`, `tasks-axi`), `no-mistakes`, 5 gói Pi dùng chung, cấu hình no-mistakes toàn máy, và `config/backend=herdr`, `config/crew-harness=pi`, `config/crew-dispatch.json`, `config/crew-exclude-tools` (chép từ `presets/`, chỉ khi chưa có, không bao giờ ghi đè). `git`, `gh`, `node`, `npm`, `jq`, `tmux`, `herdr`, `pi` phải có sẵn (script báo nếu thiếu). `FM_HOME` và `NM_HOME` đổi thư mục `config/` của Firstmate và `~/.no-mistakes`, dùng để chạy thử trong sandbox.
+Script cài: tool dòng lệnh của Firstmate (`gh-axi`, `chrome-devtools-axi`, `lavish-axi`, `quota-axi`, `tasks-axi`), `no-mistakes`, 5 gói Pi dùng chung, cấu hình no-mistakes toàn máy, và `config/backend=herdr`, `config/crew-harness=pi`, `config/crew-dispatch.json`, `config/crew-exclude-tools` (chép từ `presets/`, chỉ khi chưa có, không bao giờ ghi đè; `crew-exclude-tools` bị bỏ qua nếu `crew-harness` là runtime không ẩn được tool). `git`, `gh`, `node`, `npm`, `jq`, `tmux`, `herdr`, `pi` phải có sẵn (script báo nếu thiếu). `FM_HOME` và `NM_HOME` đổi thư mục `config/` của Firstmate và `~/.no-mistakes`, dùng để chạy thử trong sandbox.
 
 ## Đã kiểm chứng
 
