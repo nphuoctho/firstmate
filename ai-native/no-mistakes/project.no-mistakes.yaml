@@ -1,0 +1,81 @@
+# Universal per-repo no-mistakes policy for AI Native projects.
+# Copy to <repo>/.no-mistakes.yaml on the DEFAULT branch (gate-control fields are only read from there),
+# then uncomment the commands block for the repo's stack and run `no-mistakes init`.
+# Schema: https://github.com/kunchenguid/no-mistakes (docs/src/content/docs/reference/repo-config.md)
+
+# commands run via `sh -c` on the daemon host: keep them targeted and non-interactive.
+# Leave all unset to let no-mistakes auto-detect; set only what auto-detection gets wrong.
+# commands:
+#   prepare: "pnpm install --frozen-lockfile"      # npm ci | uv sync | go mod download | cargo fetch
+#   lint:    "pnpm lint && pnpm typecheck"         # ruff check . | golangci-lint run ./... | cargo clippy -- -D warnings
+#   test:    "pnpm test --run"                     # pytest -x -q | go test ./... | cargo test
+#   format:  "pnpm format"                         # ruff format . | gofmt -w . | cargo fmt
+
+# Never review generated or vendored output.
+ignore_patterns:
+  - "**/*.lock"
+  - "package-lock.json"
+  - "pnpm-lock.yaml"
+  - "yarn.lock"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/.next/**"
+  - "**/node_modules/**"
+  - "**/vendor/**"
+  - "**/*.generated.*"
+  - "**/*.min.*"
+
+# Let the reviewer ask the supervising agent a question instead of guessing.
+review:
+  conversation: true
+  # path_instructions:
+  #   - path: "docs/**"
+  #     instructions: |
+  #       Prose changes only. Do not request test coverage.
+
+# Keep review fixes human-gated; mechanical steps may self-repair.
+auto_fix:
+  rebase: 3
+  lint: 5
+  test: 3
+  document: 3
+  ci: 3
+  review: 0
+
+ci:
+  rerun_transient: 0
+  revalidate_repairs: false
+  review_bot_comments: on_failure
+  rebase_behind: false
+
+rebase:
+  strategy: rebase
+
+# Do not let AGENTS.md / CLAUDE.md make a gate agent adopt a fleet-captain identity.
+# Enable ONLY for agent-orchestration repos (like Firstmate itself); ordinary projects
+# want the gate agent to read their project instructions.
+# disable_project_settings: true
+
+# Set only if the repo intentionally has no CI, otherwise an empty check list is treated as not ready.
+# no_ci: true
+
+# Pull requests target the forge default branch unless you integrate elsewhere.
+# pr:
+#   base_branch: develop
+
+commit:
+  fix_message: "chore(no-mistakes-{{.Step}}): {{.Summary}}"
+
+intent:
+  enabled: true
+  threshold: 0.2
+  slack_days: 3
+
+test:
+  # Runbook for the Test step: how to start the app and what to exercise. Fill per repo.
+  # instructions: |
+  #   Start the app with `pnpm dev`, then exercise the changed flow.
+  evidence:
+    store_in_repo: false
+    attach_media: true
+    compact: true
