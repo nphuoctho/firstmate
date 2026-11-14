@@ -1,0 +1,16 @@
+{
+  "shared_quota": true,
+  "rules": [
+    {
+      "when": "The task is a trivial mechanical edit such as a rote rename, formatting sweep, targeted typo fix, or simple file gathering.",
+      "use": { "harness": "pi", "model": "anthropic/claude-haiku-5-5", "effort": "low" },
+      "why": "Cheapest profile for narrow, low-ambiguity work."
+    },
+    {
+      "when": "The task is ambiguous investigation, design, or a risky multi-file refactor that needs many moving parts held in mind.",
+      "use": { "harness": "pi", "model": "anthropic/claude-opus-5-5", "effort": "high" },
+      "why": "Strongest profile only where ambiguity makes a wrong turn costly."
+    }
+  ],
+  "default": { "harness": "pi", "model": "anthropic/claude-sonnet-5-5", "effort": "medium" }
+}
