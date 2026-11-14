@@ -7,7 +7,7 @@
       "why": "Mechanical upkeep goes to Haiku 5.5 at medium."
     },
     {
-      "when": "Any scout, scan, check, investigation, experiment or audit whose deliverable is a report: diagnosing an unclear failure, comparing designs, measuring tool configurations, auditing code or configuration.",
+      "when": "Any scout, scan, check, investigation, experiment or audit whose deliverable is a report: diagnosing an unclear failure, comparing designs, measuring tool configurations, auditing configuration or dependencies (not a code review of a worker's finished change).",
       "use": { "harness": "pi", "model": "anthropic/claude-sonnet-5-5", "effort": "high", "provider": "claude" },
       "why": "Reports need more reasoning than implementation but not the strongest model; scouts, scans and checks run on Sonnet 5.5 at high."
     },

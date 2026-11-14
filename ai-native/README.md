@@ -53,7 +53,7 @@ Stack mới chỉ cần thêm một file `stacks/<tên>.yaml`.
 ## Chi phí token cố định mỗi yêu cầu của thuyền viên
 
 Mỗi gói Pi cấp người dùng thêm schema công cụ vào mọi yêu cầu của mọi thuyền viên, kể cả agent của no-mistakes.
-Số đo sau là ước lượng từ kích thước payload (`data/pkg-token-cost/report.md`); chưa đo token tính tiền thật trên máy chủ.
+Số đo sau là ước lượng từ kích thước payload; chưa đo token tính tiền thật trên máy chủ.
 
 | Gói | Công cụ | Token mỗi yêu cầu (ước lượng) |
 | --- | --- | --- |
