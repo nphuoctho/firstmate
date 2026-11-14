@@ -8,7 +8,11 @@ CHECK=0
 [ "${1:-}" = "--check" ] && CHECK=1
 
 NPM_CLIS=(gh-axi chrome-devtools-axi lavish-axi quota-axi tasks-axi)
-PI_PACKAGES=(pi-open-tui pi-web-access pi-mcp-adapter pi-markdown-preview @juicesharp/rpiv-todo pi-lens cc-safety-net)
+# User-level packages load in every Pi process, workers included. pi-open-tui (replaces the composer,
+# so Firstmate cannot read it and a steer doorbell can land inside a human draft) and pi-lens
+# (~0.6-1.2 GB per worker) are primary-only: ai-native/pi-primary.sh loads them with -e.
+PI_PACKAGES=(pi-web-access pi-mcp-adapter pi-markdown-preview @juicesharp/rpiv-todo cc-safety-net)
+PRIMARY_ONLY=(pi-open-tui pi-lens)
 NM_HOME_DIR="${NM_HOME:-$HOME/.no-mistakes}"
 bad=0
 
@@ -33,13 +37,11 @@ if command -v pi >/dev/null 2>&1; then
   for p in "${PI_PACKAGES[@]}"; do
     grep -q "npm:$p\$" <<<"$installed" || { if act "pi package $p"; then pi install "npm:$p"; fi; }
   done
-  # pi-lens needs ast-grep's platform binary; npm blocks the postinstall until approved.
-  AG="$HOME/.pi/agent/npm/node_modules/@ast-grep/cli"
-  if [ -d "$AG" ] && [ ! -x "$AG/ast-grep" ]; then
-    if act "ast-grep binary (approve + rebuild)"; then
-      (cd "$HOME/.pi/agent/npm" && npm approve-scripts @ast-grep/cli && npm rebuild @ast-grep/cli)
+  for p in "${PRIMARY_ONLY[@]}"; do
+    if grep -q "npm:$p\$" <<<"$installed"; then
+      if act "remove user-level $p (primary-only)"; then pi remove "npm:$p"; fi
     fi
-  fi
+  done
 fi
 
 # no-mistakes global config: install only when the machine has none, never overwrite a tuned one.
@@ -62,4 +64,4 @@ for t in pi herdr no-mistakes tasks-axi gh-axi quota-axi lavish-axi chrome-devto
   command -v "$t" >/dev/null 2>&1 && printf '%s: %s\n' "$t" "$("$t" --version 2>&1 | head -1)"
 done
 command -v no-mistakes >/dev/null 2>&1 && no-mistakes doctor 2>&1 | grep -E "✓|✗" | head -20
-[ "$bad" = 0 ] && say "OK" || { say "INCOMPLETE"; exit 1; }
+if [ "$bad" = 0 ]; then say "OK"; else say "INCOMPLETE"; exit 1; fi

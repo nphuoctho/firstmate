@@ -9,26 +9,33 @@ ai-native/setup.sh --check   # chỉ báo thiếu gì
 ai-native/setup.sh           # cài phần thiếu, không ghi đè cấu hình đã chỉnh
 ```
 
-Script cài: tool dòng lệnh của Firstmate (`gh-axi`, `chrome-devtools-axi`, `lavish-axi`, `quota-axi`, `tasks-axi`), `no-mistakes`, 7 gói Pi, bản ast-grep cho pi-lens, cấu hình no-mistakes toàn máy, và `config/backend=herdr`, `config/crew-harness=pi`. `git`, `gh`, `node`, `npm`, `jq`, `tmux`, `herdr`, `pi` phải có sẵn (script báo nếu thiếu).
+Script cài: tool dòng lệnh của Firstmate (`gh-axi`, `chrome-devtools-axi`, `lavish-axi`, `quota-axi`, `tasks-axi`), `no-mistakes`, 5 gói Pi dùng chung, cấu hình no-mistakes toàn máy, và `config/backend=herdr`, `config/crew-harness=pi`. `git`, `gh`, `node`, `npm`, `jq`, `tmux`, `herdr`, `pi` phải có sẵn (script báo nếu thiếu).
 
-## Gói Pi (cấp người dùng)
+## Gói Pi
 
-| Gói | Dùng để |
-| --- | --- |
-| pi-open-tui | Giao diện toàn màn hình, cấu hình bằng `/open-tui` |
-| pi-web-access | Tìm web và đọc liên kết |
-| pi-mcp-adapter | Cổng MCP, tự tắt MCP tích hợp sẵn của Pi |
-| pi-markdown-preview | Xuất Markdown ra PDF, HTML, PNG |
-| @juicesharp/rpiv-todo | Danh sách việc cần làm |
-| pi-lens | Chẩn đoán lỗi, điều hướng mã, ast-grep |
-| cc-safety-net | Chặn lệnh nguy hiểm trước khi chạy |
+| Gói | Chạy ở | Dùng để |
+| --- | --- | --- |
+| pi-open-tui | phiên chính | Giao diện toàn màn hình, cấu hình bằng `/open-tui` |
+| pi-web-access | mọi phiên | Tìm web và đọc liên kết |
+| pi-mcp-adapter | mọi phiên | Cổng MCP, tự tắt MCP tích hợp sẵn của Pi |
+| pi-markdown-preview | mọi phiên | Xuất Markdown ra PDF, HTML, PNG |
+| @juicesharp/rpiv-todo | mọi phiên | Danh sách việc cần làm |
+| pi-lens | phiên chính, tùy chọn | Chẩn đoán lỗi, điều hướng mã, ast-grep |
+| cc-safety-net | mọi phiên | Chặn lệnh nguy hiểm trước khi chạy |
+
+Gói cấp người dùng được nạp cho cả thuyền viên. Hai gói chỉ chạy ở phiên chính, bật bằng `ai-native/pi-primary.sh` (`LENS=1` để thêm pi-lens):
+- pi-open-tui thay khung nhập của Pi nên Firstmate không đọc được ô nhập; chuông báo steer có thể bị nhét vào đoạn người đang gõ dở.
+- pi-lens tốn khoảng 0,6 đến 1,2 GB bộ nhớ cho mỗi thuyền viên.
+
+cc-safety-net chỉ chặn lệnh git hủy thay đổi do thuyền viên tự gõ, không chặn script của Firstmate. Chính sách nới lỏng trong worktree (`workflow.worktree_mode`) là tùy chọn và phải do anh áp dụng trong terminal của mình (xem `data/pi-worker-compat/report.md`).
 
 pi-lens có thể gán nhầm schema (ví dụ AWS) cho file YAML cấu hình no-mistakes và báo lỗi giả. Dùng `no-mistakes doctor` làm chuẩn.
 
 ## no-mistakes
 
-- `no-mistakes/global-config.yaml` thành `~/.no-mistakes/config.yaml`: agent Pi, model rẻ cho mọi bước sửa, model mạnh chỉ để review, giới hạn thời gian cứng cho mọi agent, `auto_fix.review: 0` để mọi phát hiện của review đều qua người duyệt.
+- `no-mistakes/global-config.yaml` thành `~/.no-mistakes/config.yaml`: agent Pi, model rẻ cho mọi bước sửa, model mạnh chỉ để review, giới hạn thời gian cứng cho mọi agent, `auto_fix.review: 0` để mọi phát hiện của review đều qua người duyệt (không dùng `axi run --yes`, cờ này bỏ qua cổng đó).
 - `no-mistakes/project.no-mistakes.yaml` thành `.no-mistakes.yaml` ở **nhánh mặc định** của repo, rồi `no-mistakes init`. Các trường điều khiển cổng (`commands`, `agent`, `gates`...) chỉ được đọc từ nhánh mặc định, nên phải merge file này trước khi chạy pipeline.
+- Bắt buộc điền khối `commands` (prepare, lint, test) cho từng repo: môi trường chạy không có `node_modules` hay `.venv`, để trống thì lint có thể không chạy mà lượt vẫn qua. `ignore_patterns` dùng dạng `dist/**`, `*.lock`; dạng `**/dist/**` không khớp gì.
 - Chỉ bật `disable_project_settings: true` cho repo điều phối agent như Firstmate. Repo thường cần để agent của cổng đọc `AGENTS.md` của chính nó.
 
 ## Quy ước
