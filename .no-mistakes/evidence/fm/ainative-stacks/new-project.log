@@ -1,0 +1,29 @@
+wrote /tmp/tmp.3VhMmzMwcb/node/.no-mistakes.yaml (node). Commit it on the default branch, then run: no-mistakes init
+node ['prepare', 'lint', 'test', 'format'] 13 True False
+wrote /tmp/tmp.3VhMmzMwcb/python/.no-mistakes.yaml (python). Commit it on the default branch, then run: no-mistakes init
+python ['prepare', 'lint', 'test', 'format'] 7 True False
+wrote /tmp/tmp.3VhMmzMwcb/go/.no-mistakes.yaml (go). Commit it on the default branch, then run: no-mistakes init
+go ['prepare', 'lint', 'test', 'format'] 5 True False
+wrote /tmp/tmp.3VhMmzMwcb/rust/.no-mistakes.yaml (rust). Commit it on the default branch, then run: no-mistakes init
+rust ['prepare', 'lint', 'test', 'format'] 5 True False
+wrote /tmp/tmp.3VhMmzMwcb/cpp/.no-mistakes.yaml (cpp). Commit it on the default branch, then run: no-mistakes init
+cpp ['lint', 'test', 'format'] 8 True False
+wrote /tmp/tmp.3VhMmzMwcb/shopify/.no-mistakes.yaml (shopify). Commit it on the default branch, then run: no-mistakes init
+shopify ['lint'] 10 True False
+--- adversarial
+new-project.sh: /tmp/tmp.3VhMmzMwcb/python/.no-mistakes.yaml already exists; not overwriting
+rc=1
+new-project.sh: invalid stack name '../x' (stacks: cpp go node python rust shopify )
+rc=1
+new-project.sh: unknown stack 'java' (stacks: cpp go node python rust shopify )
+rc=1
+new-project.sh: not a directory: /nonexist
+rc=1
+new-project.sh: usage: new-project.sh <stack> <repo-dir>   (stacks: cpp go node python rust shopify )
+rc=1
+.no-mistakes.yaml
+--- cpp C/C++ lint
+which: no cmake in (~/.pi/agent/bin:~/.local/bin:~/.nvm/versions/node/v24.19.0/bin:~/.local/bin:~/go/bin:~/.cargo/bin:~/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:~/.local/share/pnpm/bin:/usr/lib/rustup/bin:/opt/homebrew/bin:/opt/homebrew/sbin)
+/usr/bin/clang-tidy
+/usr/bin/clang-format
+/usr/bin/make
