@@ -6,42 +6,15 @@
 # Repo config silently ignores unknown or misspelled keys, and `no-mistakes doctor`/`status` do not
 # validate this file: check spelling against the schema.
 
-# REQUIRED: uncomment and fill for this repo's stack before relying on the gate.
+# REQUIRED: `commands` and `ignore_patterns` for this repo's stack come from stacks/<stack>.yaml.
+# ai-native/new-project.sh <stack> <repo-dir> replaces the marker line below with that snippet.
 # Left unset, the run worktree has no installed dependencies (no node_modules/.venv), so lint and
 # tests fall to an agent that may be unable to run them, and the run can still pass.
 # Commands run via `sh -c` on the daemon host; keep them non-interactive and the test targeted.
-# commands:
-#   prepare: "pnpm install --frozen-lockfile"
-#   lint:    "pnpm lint"
-#   test:    "pnpm test"
-#   format:  "pnpm exec prettier --write ."
-# Other stacks (first three verified with no-mistakes v1.106.1):
-#   Python/uv: prepare "uv sync --frozen"  lint "uv run ruff check ."  test "uv run pytest -q"  format "uv run ruff format ."
-#   Go:        prepare "go mod download"   lint "gofmt -l . | (! grep .) && go vet ./..."  test "go test ./..."  format "gofmt -w ."
-#   npm:       prepare "npm ci"            lint "npm run lint"  test "npm test"
-#   Rust:      prepare "cargo fetch"       lint "cargo clippy -- -D warnings"  test "cargo test"  format "cargo fmt"
-# Only append runner flags the script accepts: `pnpm test --run` is a Vitest flag and breaks `node --test`.
-
-# Never review generated or vendored output.
-# Matcher: no slash = basename at any depth; "dir/**" = literal path prefix from the repo root;
-# "*" never crosses "/", and "**/" is NOT a recursive wildcard ("**/dist/**" matches nothing).
+# ignore_patterns matcher: no slash = basename at any depth; "dir/**" = literal path prefix from the
+# repo root; "*" never crosses "/", and "**/" is NOT a recursive wildcard ("**/dist/**" matches nothing).
 # Nested build dirs need one literal entry each, e.g. "apps/web/dist/**".
-ignore_patterns:
-  - "*.lock"
-  - "package-lock.json"
-  - "pnpm-lock.yaml"
-  - "npm-shrinkwrap.json"
-  - "go.sum"
-  - "*.min.js"
-  - "*.min.css"
-  - "*.map"
-  - "*.generated.*"
-  - "dist/**"
-  - "build/**"
-  - ".next/**"
-  - "coverage/**"
-  - "node_modules/**"
-  - "vendor/**"
+# @@STACK@@
 
 # Let the reviewer ask the supervising agent a question instead of guessing.
 review:

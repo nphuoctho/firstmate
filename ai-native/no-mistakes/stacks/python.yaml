@@ -1,0 +1,15 @@
+# Python with uv + ruff + pytest. Verified with no-mistakes v1.106.1 (real pipeline).
+# Needs uv.lock committed (`uv sync --frozen`) and pytest in the project's dev dependencies.
+commands:
+  prepare: "uv sync --frozen"
+  lint: "uv run ruff check ."
+  test: "uv run pytest -q"
+  format: "uv run ruff format ."
+ignore_patterns:
+  - "*.lock"
+  - "*.generated.*"
+  - "*.egg-info/**"
+  - ".venv/**"
+  - "dist/**"
+  - "build/**"
+  - "__pycache__/**"

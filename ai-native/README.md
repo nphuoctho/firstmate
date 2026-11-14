@@ -9,55 +9,105 @@ ai-native/setup.sh --check   # chỉ báo thiếu gì
 ai-native/setup.sh           # cài phần thiếu, không ghi đè cấu hình đã chỉnh
 ```
 
-Script cài: tool dòng lệnh của Firstmate (`gh-axi`, `chrome-devtools-axi`, `lavish-axi`, `quota-axi`, `tasks-axi`), `no-mistakes`, 5 gói Pi dùng chung, cấu hình no-mistakes toàn máy, và `config/backend=herdr`, `config/crew-harness=pi`, `config/crew-dispatch.json`, `config/crew-exclude-tools` (chép từ `presets/`, chỉ khi chưa có, không bao giờ ghi đè; `crew-exclude-tools` bị bỏ qua nếu `crew-harness` là runtime không ẩn được tool). `git`, `gh`, `node`, `npm`, `jq`, `tmux`, `herdr`, `pi` phải có sẵn (script báo nếu thiếu). `FM_HOME` và `NM_HOME` đổi thư mục `config/` của Firstmate và `~/.no-mistakes`, dùng để chạy thử trong sandbox.
+Script cài:
+- Tool dòng lệnh của Firstmate (`gh-axi`, `chrome-devtools-axi`, `lavish-axi`, `quota-axi`, `tasks-axi`) và `no-mistakes`.
+- 2 gói Pi dùng chung (`pi-web-access`, `cc-safety-net`) và cấu hình no-mistakes toàn máy.
+- `config/backend=herdr`, `config/crew-harness=pi`, `config/crew-dispatch.json` (chép từ `presets/`, chỉ khi chưa có, không bao giờ ghi đè).
+
+`git`, `gh`, `node`, `npm`, `jq`, `tmux`, `herdr`, `pi` phải có sẵn (script báo nếu thiếu).
+`FM_HOME` và `NM_HOME` đổi thư mục `config/` của Firstmate và `~/.no-mistakes`, dùng để chạy thử trong sandbox.
+
+## Gắn một dự án mới (mọi ngôn ngữ)
+
+```sh
+ai-native/new-project.sh <stack> <repo-dir>
+```
+
+Lệnh ghép `no-mistakes/project.no-mistakes.yaml` với đoạn của stack trong `no-mistakes/stacks/` thành `<repo-dir>/.no-mistakes.yaml`.
+Lệnh không ghi đè file đã có.
+Sau đó commit file này lên nhánh mặc định của repo và chạy `no-mistakes init`.
+
+| Stack | Lệnh (prepare / lint / test) | Trạng thái |
+| --- | --- | --- |
+| `node` | `npm ci` / `npm run lint` / `npm test` | pnpm đã chạy pipeline thật; dạng npm cùng cấu trúc, chưa chạy riêng |
+| `python` | `uv sync --frozen` / `uv run ruff check .` / `uv run pytest -q` | đã chạy pipeline thật |
+| `go` | `go mod download` / `gofmt -l` + `go vet` / `go test ./...` | đã chạy pipeline thật |
+| `rust` | `cargo fetch --locked` / `cargo fmt --check` + `cargo clippy -D warnings` / `cargo test` | đã chạy fixture và một pipeline cô lập |
+| `cpp` | không có / `clang-format --dry-run` + `clang-tidy` / `make test` | lint và `make test` đã chạy trên fixture; dạng CMake chưa chạy (máy không có cmake) |
+| `shopify` | không có / `shopify theme check` | **chưa kiểm chứng**, viết từ tài liệu; app Shopify dùng script npm của app |
+
+Mỗi đoạn chỉ gồm `commands` và `ignore_patterns` của stack đó.
+Stack mới chỉ cần thêm một file `stacks/<tên>.yaml`.
 
 ## Đã kiểm chứng
 
-- `setup.sh --check` trên sandbox trống liệt kê 10 mục thiếu và không ghi gì; chạy lần hai không làm gì thêm; file cấu hình đã sửa tay không bị đè.
-- `bin/fm-bootstrap.sh` không báo `CREW_DISPATCH` hay lỗi nào về preset; mọi model id trong preset có trong `pi --list-models`.
-- Trong phòng thử Herdr (`bin/fm-herdr-lab.sh`), lệnh Pi như Firstmate dựng (`--model anthropic/claude-sonnet-5-5 --thinking medium --exclude-tools preview_export,mcp`) chạy bằng `claude-sonnet-5-5`, và `mcp`, `preview_export` không còn trong danh sách công cụ.
-- `bin/fm-lint.sh ai-native/setup.sh ai-native/pi-primary.sh` (ShellCheck 0.11.0) sạch; `bin/fm-doc-audience-check.sh` đạt.
+- `setup.sh --check` trên sandbox trống liệt kê mục thiếu và không ghi gì; chạy lần hai không làm gì thêm; file cấu hình đã sửa tay không bị đè.
+- `bin/fm-bootstrap.sh` trong nhà Firstmate tạm không báo `CREW_DISPATCH` cho preset mới, và báo lỗi cho một file JSON hỏng cố ý; cả ba model id có trong `pi --list-models`.
+- Mọi file `.no-mistakes.yaml` ghép ra (6 stack) qua bộ nạp thật của no-mistakes v1.106.1 (giải mã nghiêm ngặt và `LoadRepoFromBytes`) không báo lỗi.
+- Rust, Go, Python, C++: trên repo giả tạm, lệnh lint của đoạn stack thoát khác 0 khi có lỗi cố ý (clippy, `go vet`, `gofmt`, ruff, clang-format, clang-tidy) và thoát 0 khi sạch; lệnh test thoát 0.
+- Một pipeline no-mistakes cô lập (NM_HOME riêng, bỏ qua `pr` và `ci`, origin cục bộ) cho Rust: `prepare`, `test`, `lint` chạy đúng lệnh của đoạn stack và cả lượt qua.
+  Lỗi cố ý bị bước review bắt và sửa trước bước lint, nên lint chạy sạch; việc lint bắt lỗi được chứng minh ở bước fixture ở trên.
+- Chưa kiểm chứng: Shopify (không có Shopify CLI), dạng CMake của C++, dạng npm riêng của Node.
+- `bin/fm-lint.sh ai-native/setup.sh ai-native/pi-primary.sh ai-native/new-project.sh` (ShellCheck 0.11.0) sạch; `bin/fm-doc-audience-check.sh` đạt.
 
 ## Chi phí token cố định mỗi yêu cầu của thuyền viên
 
-Đo bằng `pi -p --mode json` (tổng token đầu vào cho lời nhắc 1 câu, ổn định giữa các lần chạy):
+Mỗi gói Pi cấp người dùng thêm schema công cụ vào mọi yêu cầu của mọi thuyền viên, kể cả agent của no-mistakes.
+Số đo sau là ước lượng từ kích thước payload; chưa đo token tính tiền thật trên máy chủ.
 
-| Cấu hình | Token | Chênh |
+| Gói | Công cụ | Token mỗi yêu cầu (ước lượng) |
 | --- | --- | --- |
-| Mặc định | 18.925 | |
-| `crew-exclude-tools` (`mcp`, `preview_export`) | 16.653 | -2.272 (-12%) |
-| Chỉ bỏ `mcp` / chỉ bỏ `preview_export` | 17.521 / 18.057 | -1.404 / -868 |
-| Thêm `--no-skills` (không áp dụng được: thuyền viên cần skill `no-mistakes`) | 6.562 | -12.363 |
+| `@juicesharp/rpiv-todo` | `todo` | khoảng 1,7k |
+| `pi-mcp-adapter` | `mcp` | khoảng 1,1k |
+| `pi-markdown-preview` | `preview_export` | khoảng 0,8k |
+| `pi-web-access` | `web_enable` | khoảng 0,2k |
+| `cc-safety-net` | không | 0 |
 
-Lưu ý: `mcp` và `preview_export` chỉ có mặt khi pi-mcp-adapter và pi-markdown-preview được nạp (đã đo trên Pi 1.5.2 với 5 gói cấp người dùng); trên máy thiếu hai gói này, mức tiết kiệm 2.272 chỉ mang tính tham khảo và danh sách loại không có tác dụng.
-
-Phần lớn chi phí còn lại (khoảng 12 nghìn token) là danh sách skill cấp người dùng trong `~/.agents/skills`; rút bớt skill ở đó là cách tiết kiệm lớn nhất, nhưng thuộc máy của anh nên kit không tự đổi. Không thêm `todo` vào danh sách loại (tiết kiệm 1.800 nhưng thuyền viên dùng nó); không loại `web_enable` (loại nó lại mở toàn bộ công cụ web, tăng 1.800).
+`--exclude-tools` của Firstmate chỉ ẩn công cụ cho Pi của thuyền viên do Firstmate dựng, không áp dụng cho agent của no-mistakes và không giảm chi phí khi gói vẫn cài cấp người dùng.
+Vì vậy kit bỏ `presets/crew-exclude-tools` và chuyển ba gói trên sang chỉ chạy ở phiên chính.
+Phần lớn chi phí còn lại (khoảng 12 nghìn token) là danh sách skill cấp người dùng trong `~/.agents/skills`; rút bớt skill ở đó thuộc máy của anh nên kit không tự đổi.
 
 ## Gói Pi
 
 | Gói | Chạy ở | Dùng để |
 | --- | --- | --- |
-| pi-open-tui | phiên chính | Giao diện toàn màn hình, cấu hình bằng `/open-tui` |
 | pi-web-access | mọi phiên | Tìm web và đọc liên kết |
-| pi-mcp-adapter | mọi phiên | Cổng MCP, tự tắt MCP tích hợp sẵn của Pi |
-| pi-markdown-preview | mọi phiên | Xuất Markdown ra PDF, HTML, PNG |
-| @juicesharp/rpiv-todo | mọi phiên | Danh sách việc cần làm |
-| pi-lens | phiên chính, tùy chọn | Chẩn đoán lỗi, điều hướng mã, ast-grep |
 | cc-safety-net | mọi phiên | Chặn lệnh nguy hiểm trước khi chạy |
+| pi-open-tui | phiên chính | Giao diện toàn màn hình, cấu hình bằng `/open-tui` |
+| pi-mcp-adapter | phiên chính | Cổng MCP, tự tắt MCP tích hợp sẵn của Pi |
+| pi-markdown-preview | phiên chính | Xuất Markdown ra PDF, HTML, PNG |
+| @juicesharp/rpiv-todo | phiên chính | Danh sách việc cần làm |
+| pi-lens | phiên chính, tùy chọn | Chẩn đoán lỗi, điều hướng mã, ast-grep |
 
-Gói cấp người dùng được nạp cho cả thuyền viên. Hai gói chỉ chạy ở phiên chính, bật bằng `ai-native/pi-primary.sh` (`LENS=1` để thêm pi-lens):
+Hai gói đầu cài cấp người dùng và nạp cho cả thuyền viên.
+Năm gói còn lại chỉ chạy ở phiên chính, bật bằng `ai-native/pi-primary.sh` (`LENS=1` để thêm pi-lens); `setup.sh` gỡ bản cấp người dùng của chúng nếu có.
 - pi-open-tui thay khung nhập của Pi nên Firstmate không đọc được ô nhập; chuông báo steer có thể bị nhét vào đoạn người đang gõ dở.
 - pi-lens tốn khoảng 0,6 đến 1,2 GB bộ nhớ cho mỗi thuyền viên.
+- todo, mcp và preview_export tốn token mỗi yêu cầu như bảng trên.
 
-cc-safety-net chỉ chặn lệnh git hủy thay đổi do thuyền viên tự gõ, không chặn script của Firstmate. Chính sách nới lỏng trong worktree (`workflow.worktree_mode`) là tùy chọn và phải do anh áp dụng trong terminal của mình (xem `data/pi-worker-compat/report.md`).
+cc-safety-net chỉ chặn lệnh git hủy thay đổi do thuyền viên tự gõ, không chặn script của Firstmate.
+Nó từ chối khoảng 3,4 phần trăm lệnh thật của thuyền viên, chủ yếu `git reset --hard`.
+Nới lỏng chính sách (`workflow.worktree_mode`) là quyết định của anh và phải do anh áp dụng trong terminal của mình (xem `data/pi-worker-compat/report.md`).
 
-pi-lens có thể gán nhầm schema (ví dụ AWS) cho file YAML cấu hình no-mistakes và báo lỗi giả. Dùng `no-mistakes doctor` làm chuẩn.
+pi-lens có thể gán nhầm schema (ví dụ AWS) cho file YAML cấu hình no-mistakes và báo lỗi giả.
+Dùng `no-mistakes doctor` làm chuẩn.
+
+## Phân tầng model cho thuyền viên
+
+`presets/crew-dispatch.json` (giữ `shared_quota: true`, harness `pi`):
+
+| Việc | Model |
+| --- | --- |
+| Bảo trì cơ học (rebase, version bump, đổi tên) | Haiku 5.5, medium |
+| Mọi việc còn lại (mặc định) | Sonnet 5.5, medium |
+| Scout, quét, điều tra, kiểm toán | Sonnet 5.5, high |
+| Lập kế hoạch việc lớn hoặc rủi ro, review mã chỉ đọc | Opus 5.5, xhigh |
 
 ## no-mistakes
 
 - `no-mistakes/global-config.yaml` thành `~/.no-mistakes/config.yaml`: agent Pi, model rẻ cho mọi bước sửa, model mạnh chỉ để review, giới hạn thời gian cứng cho mọi agent, `auto_fix.review: 0` để mọi phát hiện của review đều qua người duyệt (không dùng `axi run --yes`, cờ này bỏ qua cổng đó).
-- `no-mistakes/project.no-mistakes.yaml` thành `.no-mistakes.yaml` ở **nhánh mặc định** của repo, rồi `no-mistakes init`. Các trường điều khiển cổng (`commands`, `agent`, `gates`...) chỉ được đọc từ nhánh mặc định, nên phải merge file này trước khi chạy pipeline.
-- Bắt buộc điền khối `commands` (prepare, lint, test) cho từng repo: môi trường chạy không có `node_modules` hay `.venv`, để trống thì lint có thể không chạy mà lượt vẫn qua. `ignore_patterns` dùng dạng `dist/**`, `*.lock`; dạng `**/dist/**` không khớp gì.
+- `no-mistakes/project.no-mistakes.yaml` ghép với đoạn stack (`new-project.sh`, xem trên) thành `.no-mistakes.yaml` ở **nhánh mặc định** của repo, rồi `no-mistakes init`. Các trường điều khiển cổng (`commands`, `agent`, `gates`...) chỉ được đọc từ nhánh mặc định, nên phải merge file này trước khi chạy pipeline.
+- Bắt buộc có khối `commands` (prepare, lint, test) cho từng repo, các đoạn stack đã điền sẵn: môi trường chạy không có `node_modules` hay `.venv`, để trống thì lint có thể không chạy mà lượt vẫn qua. `ignore_patterns` dùng dạng `dist/**`, `*.lock`; dạng `**/dist/**` không khớp gì.
 - Chỉ bật `disable_project_settings: true` cho repo điều phối agent như Firstmate. Repo thường cần để agent của cổng đọc `AGENTS.md` của chính nó.
 
 ## Quy ước

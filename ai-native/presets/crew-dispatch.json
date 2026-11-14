@@ -2,15 +2,20 @@
   "shared_quota": true,
   "rules": [
     {
-      "when": "The task is a trivial mechanical edit such as a rote rename, formatting sweep, targeted typo fix, or simple file gathering.",
-      "use": { "harness": "pi", "model": "anthropic/claude-haiku-5-5", "effort": "low" },
-      "why": "Cheapest profile for narrow, low-ambiguity work."
+      "when": "Mechanical upkeep with no design judgment: rebasing a branch onto its base, resolving CHANGELOG or lockfile merge conflicts, re-running a pipeline, version bumps, or a rote rename or formatting sweep.",
+      "use": { "harness": "pi", "model": "anthropic/claude-haiku-5-5", "effort": "medium", "provider": "claude" },
+      "why": "Mechanical upkeep goes to Haiku 5.5 at medium."
     },
     {
-      "when": "The task is ambiguous investigation, design, or a risky multi-file refactor that needs many moving parts held in mind.",
-      "use": { "harness": "pi", "model": "anthropic/claude-opus-5-5", "effort": "high" },
-      "why": "Strongest profile only where ambiguity makes a wrong turn costly."
+      "when": "Any scout, scan, check, investigation, experiment or audit whose deliverable is a report: diagnosing an unclear failure, comparing designs, measuring tool configurations, auditing configuration or dependencies (not a code review of a worker's finished change).",
+      "use": { "harness": "pi", "model": "anthropic/claude-sonnet-5-5", "effort": "high", "provider": "claude" },
+      "why": "Reports need more reasoning than implementation but not the strongest model; scouts, scans and checks run on Sonnet 5.5 at high."
+    },
+    {
+      "when": "Planning a large, complex or high-risk task before implementation (a written plan for a Sonnet worker to execute), or reviewing the code a Sonnet worker has finished (a read-only code review that reports findings and changes nothing).",
+      "use": { "harness": "pi", "model": "anthropic/claude-opus-5-5", "effort": "xhigh", "provider": "claude" },
+      "why": "Opus 5.5 is used only for planning and read-only code review."
     }
   ],
-  "default": { "harness": "pi", "model": "anthropic/claude-sonnet-5-5", "effort": "medium" }
+  "default": { "harness": "pi", "model": "anthropic/claude-sonnet-5-5", "effort": "medium", "provider": "claude" }
 }
