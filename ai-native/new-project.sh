@@ -86,7 +86,7 @@ detect_node() {
   local dir=$1 d pkg pm label how run lock prep lint test fmt tc s
   d="$(path_of "$dir")"; pkg="$d/package.json"
   command -v jq >/dev/null 2>&1 || die "jq is needed to read package.json"
-  jq -e . "$pkg" >/dev/null 2>&1 || { note "$(where "$dir")package.json is not valid JSON; node skipped"; return; }
+  jq -e . "$pkg" >/dev/null 2>&1 || { note "$(where "$dir"): package.json is not valid JSON; node skipped"; return; }
   pm=""; how=""
   s="$(jq -r '.packageManager // ""' "$pkg")"; s="${s%%@*}"
   case "$s" in npm | pnpm | yarn | bun) pm="$s"; how="packageManager field" ;; esac
@@ -183,7 +183,7 @@ detect_cpp() {
   local dir=$1 d test lint
   d="$(path_of "$dir")"
   if [ -z "$(git -C "$d" ls-files -- '*.c' '*.cc' '*.cpp' '*.h' '*.hpp' 2>/dev/null | head -n 1)" ]; then
-    note "$(where "$dir")Makefile has no tracked C or C++ files under it, so it is not treated as a C/C++ project."
+    note "$(where "$dir"): Makefile has no tracked C or C++ files under it, so it is not treated as a C/C++ project."
     return
   fi
   test=""
@@ -240,7 +240,7 @@ else
     case "$stack" in *[!a-z0-9_-]* | "") die "invalid stack name '$stack' (stacks: $(list))" ;; esac
     [ -f "$STACKS/$stack.yaml" ] || die "unknown stack '$stack' (stacks: $(list))"
     while [ "${#dir}" -gt 1 ] && [ "${dir%/}" != "$dir" ]; do dir="${dir%/}"; done
-    case "$dir" in *[!A-Za-z0-9._/-]* | "" | /* | ..  | ../* | */../* | */..) die "invalid folder '$dir'" ;; esac
+    case "$dir" in *[!A-Za-z0-9._/-]* | "" | /* | .. | ../* | */../* | */.. | ./* | */./* | */. | *//*) die "invalid folder '$dir'" ;; esac
     [ -d "$repo/$dir" ] || die "no folder '$dir' in $repo"
     add_entry "$stack" "$dir" "$stack (named)" "$(snip_cmd "$stack" prepare)" "$(snip_cmd "$stack" lint)" "$(snip_cmd "$stack" test)" "$(snip_cmd "$stack" format)"
   done
