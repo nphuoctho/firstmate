@@ -1,6 +1,6 @@
-# Node / TypeScript. Verified with no-mistakes v1.106.1 (pnpm variant, real pipeline).
-# The npm form below has the same shape but was not run separately; swap in pnpm (`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test`) if the repo uses it.
-# Only pass runner flags the test script accepts (`--run` is a Vitest flag and breaks `node --test`).
+# Node and TypeScript, written for npm. The pnpm form ran through a real pipeline.
+# new-project.sh swaps in pnpm, yarn or bun and drops any script the repo does not have.
+# Only pass flags the test script accepts (`--run` is a Vitest flag and breaks `node --test`).
 commands:
   prepare: "npm ci"
   lint: "npm run lint"

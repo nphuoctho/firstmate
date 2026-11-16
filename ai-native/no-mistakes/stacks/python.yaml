@@ -1,5 +1,6 @@
-# Python with uv + ruff + pytest. Verified with no-mistakes v1.106.1 (real pipeline).
-# Needs uv.lock committed (`uv sync --frozen`) and pytest in the project's dev dependencies.
+# Python with uv, ruff and pytest. Ran through a real pipeline with no-mistakes v1.106.1.
+# Needs uv.lock committed (`uv sync --frozen`) and pytest in the dev dependencies.
+# new-project.sh swaps `uv run` for poetry or a pip .venv, and drops ruff or pytest if the repo has no config for them.
 commands:
   prepare: "uv sync --frozen"
   lint: "uv run ruff check ."

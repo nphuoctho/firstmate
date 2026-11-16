@@ -1,5 +1,5 @@
-# Go. Verified with no-mistakes v1.106.1 (real pipeline).
-# The lint form prints the offending files (a bare `test -z "$(gofmt -l .)"` fails with an empty summary).
+# Go. Ran through a real pipeline with no-mistakes v1.106.1.
+# The lint form lists the files gofmt dislikes; a bare `test -z "$(gofmt -l .)"` fails with no output.
 commands:
   prepare: "go mod download"
   lint: "gofmt -l . | (! grep .) && go vet ./..."

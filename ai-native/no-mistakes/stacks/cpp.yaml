@@ -1,8 +1,6 @@
-# C / C++ with make. clang-format --dry-run and clang-tidy exercised on a throwaway fixture; the make
-# test target is exercised there too. The CMake form is UNTESTED (cmake is not installed on the machine
-# that wrote this file): replace the test line with
-#   test: "cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure"
-# Adjust the globs to the repo layout; clang-tidy reads compile_commands.json when present, else uses --extra-arg flags.
+# C and C++ with plain make, clang-format and clang-tidy. Lint and the make test target were run on a
+# throwaway fixture. Needs a Makefile with a `test` target. Adjust the globs to the repo layout;
+# clang-tidy reads compile_commands.json when present, else uses the --extra-arg flags.
 commands:
   lint: "git ls-files '*.c' '*.cc' '*.cpp' '*.h' '*.hpp' | xargs -r clang-format --dry-run --Werror && git ls-files '*.cc' '*.cpp' | xargs -r clang-tidy --warnings-as-errors='*' --quiet --extra-arg=-std=c++17 && git ls-files '*.c' | xargs -r clang-tidy --warnings-as-errors='*' --quiet --extra-arg=-std=c11"
   test: "make test"
@@ -13,6 +11,5 @@ ignore_patterns:
   - "*.so"
   - "*.generated.*"
   - "build/**"
-  - "cmake-build-debug/**"
   - "third_party/**"
   - "vendor/**"

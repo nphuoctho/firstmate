@@ -1,7 +1,6 @@
-# Rust with cargo. Lint and test commands exercised on a throwaway fixture and through one isolated
-# no-mistakes v1.106.1 pipeline run (see ai-native/README.md).
-# Lint includes the format check so an unformatted file fails the gate; `cargo fmt` is the fixer.
-# Needs Cargo.lock committed; for library crates without one, use plain "cargo fetch" as prepare.
+# Rust with cargo. Lint and test were run on a throwaway fixture and through one isolated pipeline.
+# Lint includes the format check, so an unformatted file fails the gate; `cargo fmt` fixes it.
+# Needs Cargo.lock committed. Without one, use plain `cargo fetch` as prepare.
 commands:
   prepare: "cargo fetch --locked"
   lint: "cargo fmt --check && cargo clippy --all-targets -- -D warnings"
