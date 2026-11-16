@@ -49,7 +49,7 @@ Setting a format would replace that.
 
 Nothing can enforce the rest from this repo.
 No-mistakes has no setting for branch names, and your own commits and PR titles are only as good as the person or agent writing them.
-Point agents at this file instead.
+The generated `.no-mistakes.yaml` has a `review.path_instructions` entry that tells the reviewer both rules, and `new-project.sh` prints them when it writes the file.
 
 ## Using it with Firstmate
 

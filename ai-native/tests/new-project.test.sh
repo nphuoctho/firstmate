@@ -45,7 +45,8 @@ echo "new-project.sh fixtures"
 if command -v jq >/dev/null 2>&1; then
   d="$(repo node-npm 'package.json={"scripts":{"lint":"x","test":"y"}}' 'package-lock.json={}')"
   check "node npm" "$d" 0 'node \(npm, from package-lock.json\)'
-  check "node npm uses npm ci and the lint script" "$d" 0 'prepare: "npm ci"'
+  check "node npm uses npm ci" "$d" 0 'prepare: "npm ci"'
+  check "node npm uses the lint script" "$d" 0 'lint: "npm run lint"'
   check "node,node names one stack once" "$d" 0 'named twice' node,node
   out="$("$NP" --dry-run node,node "$d" 2>&1)"
   if grep -q 'npm ci && npm ci' <<<"$out"; then bad "node,node repeats the command"; else ok "node,node writes the command once"; fi
@@ -56,7 +57,9 @@ else
 fi
 
 d="$(repo py-uv 'pyproject.toml=[project]\nname="a"\ndependencies=["ruff>=0.5","pytest"]\n' 'uv.lock=\n')"
-check "python uv" "$d" 0 'uv sync --frozen.*|uv run ruff'
+check "python uv sets the ruff lint command" "$d" 0 'lint: "uv run ruff check \."'
+d="$(repo py-dev 'requirements.txt=x\n' 'pyproject.toml=[project.optional-dependencies]\ndev = ["pytest", "ruff"]\n')"
+check "python one-line dev array sets the ruff lint command" "$d" 0 'lint: "\.venv/bin/ruff check \."'
 d="$(repo py-req 'requirements.txt=ruff==0.5\npytest\n')"
 check "python requirements" "$d" 0 '\.venv/bin/ruff'
 d="$(repo py-none 'requirements.txt=flask\n')"
@@ -83,12 +86,21 @@ d="$(repo write 'go.mod=module x\n')"
 out="$("$NP" "$d" 2>&1)"
 mode="$(stat -c %a "$d/.no-mistakes.yaml" 2>/dev/null || stat -f %Lp "$d/.no-mistakes.yaml")"
 if [ "$mode" = 644 ]; then ok "written file has mode 644"; else bad "written file mode is $mode"; fi
-if grep -q 'git-conventions.md' <<<"$out"; then ok "write prints the git rules pointer"; else bad "no pointer to git-conventions.md" "$out"; fi
+if grep -q 'Conventional Commits' <<<"$out" && grep -q 'Conventional Branch' <<<"$out" && grep -q -- '--branch-prefix' <<<"$out"; then ok "write prints the git rules inline"; else bad "git rules not printed" "$out"; fi
+if grep -q 'git-conventions.md' <<<"$out"; then bad "output points into the kit checkout"; else ok "output has no kit path"; fi
+if grep -q 'path: "\*\*"' "$d/.no-mistakes.yaml" && grep -q 'Conventional Branch' "$d/.no-mistakes.yaml"; then ok "generated file has the review instruction"; else bad "no review path instruction in generated file"; fi
 if "$NP" "$d" >/dev/null 2>&1; then bad "second write overwrote the file"; else ok "second write refuses"; fi
 
 # setup.sh must reject an unknown argument before doing anything.
 out="$("$HERE/setup.sh" --chek 2>&1)"; rc=$?
 if [ "$rc" != 0 ] && grep -q usage <<<"$out" && ! grep -q 'versions' <<<"$out"; then ok "setup.sh rejects an unknown argument"; else bad "setup.sh --chek: exit $rc" "$out"; fi
+
+# setup.sh must leave a hand-tuned config without the kit marker byte-identical.
+sb="$(mktemp -d)"; mkdir -p "$sb/nm" "$sb/fm"
+printf 'agent: claude\nmax_concurrent_runs: 2\n' >"$sb/nm/config.yaml"; cp "$sb/nm/config.yaml" "$sb/orig"
+out="$(HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$PATH" "$HERE/setup.sh" --check 2>&1)"
+if cmp -s "$sb/orig" "$sb/nm/config.yaml" && ! grep -q 'MISSING: no-mistakes global config' <<<"$out" && grep -q 'left alone' <<<"$out"; then ok "--check leaves a tuned config alone"; else bad "--check mishandled a tuned config" "$out"; fi
+rm -rf "$sb"
 
 printf '%s passed, %s failed, %s skipped\n' "$pass" "$fail" "$skip"
 [ "$fail" = 0 ]

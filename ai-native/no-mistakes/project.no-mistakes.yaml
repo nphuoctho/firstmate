@@ -19,7 +19,12 @@
 # Let the reviewer ask the supervising agent a question instead of guessing.
 review:
   conversation: true
-  # path_instructions:
+  path_instructions:
+    - path: "**"
+      instructions: |
+        Commit messages and PR titles follow Conventional Commits (type(scope): description).
+        Branch names follow Conventional Branch (feature/, bugfix/, hotfix/, release/, chore/).
+  # More examples:
   #   - path: "docs/**"
   #     instructions: |
   #       Prose changes only. Do not request test coverage.

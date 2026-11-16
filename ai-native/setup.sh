@@ -45,21 +45,27 @@ for t in git gh node npm jq curl treehouse herdr pi; do
   command -v "$t" >/dev/null 2>&1 || miss "$t ($(hint "$t"))"
 done
 
-# no-mistakes global config. Installed when absent; replaced (after a timestamped .bak copy) when it has no
-# kit marker, which is what the no-mistakes installer writes on a fresh machine; never touched once it
-# carries the marker, so a tuned kit config survives.
+# no-mistakes global config. Installed when absent. Replaced (after a timestamped .bak copy) only when it
+# is the installer's untouched default (nothing but `agent: auto`) or the installer rewrote it in this run.
+# A config with the kit marker, or any other hand-tuned config, is never touched.
+nm_cfg_sum() { cksum <"$NM_HOME_DIR/config.yaml" 2>/dev/null || true; }
+nm_cfg_is_default() { ! grep -vE '^[[:space:]]*(#.*)?$' "$1" | grep -qvx 'agent: auto'; }
 install_nm_config() {
-  local f="$NM_HOME_DIR/config.yaml"
+  local f="$NM_HOME_DIR/config.yaml" fresh="${1:-}"
   if [ ! -s "$f" ]; then
     if act "no-mistakes global config"; then
       mkdir -p "$NM_HOME_DIR"
       cp "$ROOT/ai-native/no-mistakes/global-config.yaml" "$f"
     fi
   elif ! grep -qxF "$KIT_MARKER" "$f"; then
-    if act "no-mistakes global config (replacing a default one, old copy saved as config.yaml.bak.<time>)"; then
-      cp "$f" "$f.bak.$(date +%Y%m%d%H%M%S)"
-      cp "$ROOT/ai-native/no-mistakes/global-config.yaml" "$f"
-      say "note: restart the no-mistakes daemon to apply it (no-mistakes daemon restart) when no runs are active."
+    if [ -n "$fresh" ] || nm_cfg_is_default "$f"; then
+      if act "no-mistakes global config (replacing the installer default, old copy saved as config.yaml.bak.<time>)"; then
+        cp "$f" "$f.bak.$(date +%Y%m%d%H%M%S)"
+        cp "$ROOT/ai-native/no-mistakes/global-config.yaml" "$f"
+        say "note: restart the no-mistakes daemon to apply it (no-mistakes daemon restart) when no runs are active."
+      fi
+    else
+      say "note: $f is not the kit config and is left alone; to adopt the kit config, copy ai-native/no-mistakes/global-config.yaml over it."
     fi
   fi
 }
@@ -68,13 +74,14 @@ install_nm_config() {
 install_nm_config
 
 if ! command -v no-mistakes >/dev/null 2>&1; then
+  before="$(nm_cfg_sum)"
   if ! command -v curl >/dev/null 2>&1; then
     say "skipped: no-mistakes install (curl is not installed)"
   elif act "no-mistakes"; then
     curl -fsSL https://raw.githubusercontent.com/kunchenguid/no-mistakes/main/docs/install.sh | sh
   fi
   # The installer may have written its own default config.
-  [ "$CHECK" = 1 ] || install_nm_config
+  if [ "$CHECK" != 1 ] && [ "$(nm_cfg_sum)" != "$before" ]; then install_nm_config fresh; fi
 fi
 
 for c in "${NPM_CLIS[@]}"; do

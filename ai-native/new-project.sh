@@ -164,7 +164,7 @@ detect_python() {
   # entry), because `uv run ruff`, `poetry run ruff` and .venv/bin/ruff can only run what the manager
   # installs. A ruff.toml or a [tool.ruff] table alone is configuration, not a runnable tool.
   ruff_dep=0
-  if [ "${#files[@]}" -gt 0 ] && grep -qsiE "^[[:space:]]*[\"']?ruff([[:space:]<>=~!;,\"'[]|\$)" "${files[@]}"; then ruff_dep=1; fi
+  if [ "${#files[@]}" -gt 0 ] && grep -qsiE "(^|[[:space:],\[\"'])ruff([[:space:]<>=~!;,\"'\[]|\$)" "${files[@]}"; then ruff_dep=1; fi
   if [ "$ruff_dep" = 0 ]; then
     if [ -e "$d/ruff.toml" ] || [ -e "$d/.ruff.toml" ] || { [ -e "$py" ] && grep -qs '^\[tool\.ruff' "$py"; }; then
       note "$(where "$dir"): ruff is configured but not listed as a dependency, so 'ruff' would not run; add it to the dev dependencies to get a lint command."
@@ -330,7 +330,9 @@ else
   # ln fails if the target appeared meanwhile, so a racing file is never replaced.
   ln "$tmp" "$out" 2>/dev/null || die "$out appeared meanwhile; not overwriting"
   printf 'wrote %s. Commit it on the default branch, then run: no-mistakes init\n' "$out"
-  printf 'Commit and branch naming rules (and how to use them with Firstmate): %s\n' "$HERE/rules/git-conventions.md"
+  printf 'Commits and PR titles: Conventional Commits, type(scope): description.\n'
+  printf 'Branches: Conventional Branch, feature/, bugfix/, hotfix/, release/ or chore/ prefix.\n'
+  printf 'When briefing Firstmate, pass --branch-prefix <type>/ per task (its default fm/ is not a Conventional Branch type).\n'
 fi
 
 if [ "${#NOTES[@]}" -gt 0 ]; then

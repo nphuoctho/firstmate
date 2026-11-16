@@ -23,7 +23,7 @@ Install these first. The script reports any that are missing:
 - `herdr` (https://herdr.dev), `pi` (https://pi.dev) and `treehouse` (Firstmate needs it for the Herdr backend).
 
 It then installs what is missing:
-- `no-mistakes` and its machine-wide config (`no-mistakes/global-config.yaml`). A default config left by the no-mistakes installer is replaced after saving a `config.yaml.bak.<time>` copy. A config that starts with the line `# ai-native-kit-config` is never touched, so your edits survive;
+- `no-mistakes` and its machine-wide config (`no-mistakes/global-config.yaml`). The installer's untouched default config (or one the installer writes during the same run) is replaced after saving a `config.yaml.bak.<time>` copy. A config with the line `# ai-native-kit-config`, or any other config you edited, is never touched; setup says so and you can copy `no-mistakes/global-config.yaml` over it by hand;
 - the Firstmate command-line tools `gh-axi`, `chrome-devtools-axi`, `lavish-axi`, `quota-axi` and `tasks-axi`, with `setup hooks` run for the first three;
 - two shared Pi packages, `pi-web-access` and `cc-safety-net` (the Pi package check is skipped, with a message, when `pi` is missing);
 - `config/backend=herdr`, `config/crew-harness=pi` and `config/crew-dispatch.json` (copied from `presets/`), each only when missing.
@@ -42,7 +42,7 @@ ai-native/new-project.sh [--dry-run] [--verify] <stacks> <repo-dir>    # name th
 ```
 
 The script writes `<repo-dir>/.no-mistakes.yaml`. Commit it on the repo's default branch, then run `no-mistakes init`.
-It never overwrites an existing file and prints a pointer to the git rules when it writes one.
+It never overwrites an existing file and prints the commit and branch rules inline when it writes one. The generated file also has a review instruction for them.
 
 It looks for marker files in the repo root and one folder down:
 
@@ -145,7 +145,7 @@ Loosening it (`workflow.worktree_mode`) is your call, made in your own terminal.
 ## Verification
 
 - `ai-native/tests/new-project.test.sh` builds throwaway repos (node, python, go, rust, make C++, a monorepo, an empty repo) and checks detection and `--dry-run`. It installs nothing and runs in about a second.
-- `setup.sh --check` on an empty sandbox lists what is missing and writes nothing. A second full run changes nothing, and a config with the kit marker survives.
+- `setup.sh --check` on an empty sandbox lists what is missing and writes nothing. A second full run changes nothing, and a config with the kit marker or a hand-tuned config survives byte for byte.
 - Generated files load through the strict no-mistakes v1.106.1 config loader, not just `doctor`, which never reads them.
 - `new-project.sh --verify` passes on clean fixtures (Go, Rust, C++, Node, Python with uv and with pip) and fails on a deliberate lint defect. yarn and bun commands are generated but were never run.
 - `bin/fm-lint.sh ai-native/*.sh` and `bin/fm-doc-audience-check.sh` pass.
