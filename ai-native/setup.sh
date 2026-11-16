@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
 # AI Native base bootstrap: Pi Agent + Firstmate + Herdr + no-mistakes.
-# Idempotent. Usage: ai-native/setup.sh [--check]   (--check only reports, changes nothing)
+# Idempotent. Usage: ai-native/setup.sh [--check | -h | --help]
+#   --check  only report what is missing and change nothing; exits 1 when something is missing.
 # FM_HOME and NM_HOME relocate the Firstmate config and the no-mistakes home (default: this repo, ~/.no-mistakes).
+# A real sandbox run also needs HOME, NPM_CONFIG_PREFIX and a limited PATH (see ai-native/README.md).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+usage() { printf 'usage: ai-native/setup.sh [--check]\n  (no argument)  install what is missing\n  --check        report what is missing, change nothing, exit 1 if anything is missing\n'; }
 CHECK=0
-[ "${1:-}" = "--check" ] && CHECK=1
+case "${1:-}" in
+  "") ;;
+  --check) CHECK=1 ;;
+  -h | --help) usage; exit 0 ;;
+  *) usage >&2; exit 2 ;;
+esac
+[ "$#" -le 1 ] || { usage >&2; exit 2; }
 
 NPM_CLIS=(gh-axi chrome-devtools-axi lavish-axi quota-axi tasks-axi)
 # User-level packages load in every Pi process, workers included, so only the cheap ones live here.
@@ -16,22 +25,70 @@ NPM_CLIS=(gh-axi chrome-devtools-axi lavish-axi quota-axi tasks-axi)
 PI_PACKAGES=(pi-web-access cc-safety-net)
 PRIMARY_ONLY=(pi-open-tui pi-lens @juicesharp/rpiv-todo pi-mcp-adapter pi-markdown-preview)
 NM_HOME_DIR="${NM_HOME:-$HOME/.no-mistakes}"
+# First line of the kit's global config. A config carrying it is the kit's and is never touched.
+KIT_MARKER='# ai-native-kit-config'
 bad=0
 
 say()  { printf '%s\n' "$*"; }
 miss() { say "MISSING: $*"; bad=1; }
 act()  { if [ "$CHECK" = 1 ]; then miss "$*"; else say "installing: $*"; return 0; fi; return 1; }
 
-for t in git gh node npm jq tmux herdr pi; do
-  command -v "$t" >/dev/null 2>&1 || miss "$t (install it with your OS package manager or its vendor installer; herdr: https://herdr.dev, pi: https://pi.dev)"
+hint() {
+  case "$1" in
+    herdr) printf 'install it from https://herdr.dev' ;;
+    pi) printf 'install it from https://pi.dev' ;;
+    treehouse) printf 'install it with its vendor installer; Firstmate needs it for the herdr backend' ;;
+    *) printf 'install it with your OS package manager' ;;
+  esac
+}
+for t in git gh node npm jq curl treehouse herdr pi; do
+  command -v "$t" >/dev/null 2>&1 || miss "$t ($(hint "$t"))"
 done
 
-command -v no-mistakes >/dev/null 2>&1 || {
-  if act "no-mistakes"; then curl -fsSL https://raw.githubusercontent.com/kunchenguid/no-mistakes/main/docs/install.sh | sh; fi
+# no-mistakes global config. Installed when absent. Replaced (after a timestamped .bak copy) only when the
+# installer wrote it in this run. Any other existing config, with or without the kit marker, is never touched.
+nm_cfg_sum() { { cksum <"$NM_HOME_DIR/config.yaml"; } 2>/dev/null || true; }
+install_nm_config() {
+  local f="$NM_HOME_DIR/config.yaml" fresh="${1:-}"
+  if [ ! -s "$f" ]; then
+    if act "no-mistakes global config"; then
+      mkdir -p "$NM_HOME_DIR"
+      cp "$ROOT/ai-native/no-mistakes/global-config.yaml" "$f"
+    fi
+  elif [ -n "$fresh" ]; then
+    cp "$f" "$f.bak.$(date +%Y%m%d%H%M%S)"
+    cp "$ROOT/ai-native/no-mistakes/global-config.yaml" "$f"
+    say "replaced the installer's default config; old copy saved as config.yaml.bak.<time>."
+    say "note: restart the no-mistakes daemon to apply it (no-mistakes daemon restart) when no runs are active."
+  elif ! grep -qxF "$KIT_MARKER" "$f"; then
+    say "note: $f is not the kit config and is left alone. To adopt the kit config: cp '$f' '$f.bak' && cp '$ROOT/ai-native/no-mistakes/global-config.yaml' '$f'"
+  fi
 }
 
+# Before the installer, so its first daemon start already reads the kit config.
+install_nm_config
+
+if ! command -v no-mistakes >/dev/null 2>&1; then
+  before="$(nm_cfg_sum)"
+  if ! command -v curl >/dev/null 2>&1; then
+    say "skipped: no-mistakes install (curl is not installed)"
+  elif act "no-mistakes"; then
+    curl -fsSL https://raw.githubusercontent.com/kunchenguid/no-mistakes/main/docs/install.sh | sh
+  fi
+  # The installer may have written its own default config.
+  if [ "$CHECK" != 1 ] && [ "$(nm_cfg_sum)" != "$before" ]; then install_nm_config fresh; fi
+fi
+
 for c in "${NPM_CLIS[@]}"; do
-  command -v "$c" >/dev/null 2>&1 || { if act "$c"; then npm install -g "$c"; fi; }
+  command -v "$c" >/dev/null 2>&1 || {
+    if act "$c"; then
+      npm install -g "$c"
+      # Same follow-up step as Firstmate's own install hint (bin/fm-bootstrap.sh).
+      case "$c" in
+        gh-axi | chrome-devtools-axi | lavish-axi) "$c" setup hooks || say "warning: $c setup hooks failed" ;;
+      esac
+    fi
+  }
 done
 
 if command -v pi >/dev/null 2>&1; then
@@ -44,14 +101,8 @@ if command -v pi >/dev/null 2>&1; then
       if act "remove user-level $p (primary-only)"; then pi remove "npm:$p"; fi
     fi
   done
-fi
-
-# no-mistakes global config: install only when the machine has none, never overwrite a tuned one.
-if [ ! -s "$NM_HOME_DIR/config.yaml" ]; then
-  if act "no-mistakes global config"; then
-    mkdir -p "$NM_HOME_DIR"
-    cp "$ROOT/ai-native/no-mistakes/global-config.yaml" "$NM_HOME_DIR/config.yaml"
-  fi
+else
+  say "skipped: Pi package check (pi is not installed, so the packages cannot be listed)"
 fi
 
 # Firstmate local (gitignored) config: Pi workers on the Herdr backend, plus the dispatch preset.
@@ -68,5 +119,5 @@ say "--- versions"
 for t in pi herdr no-mistakes tasks-axi gh-axi quota-axi lavish-axi chrome-devtools-axi; do
   command -v "$t" >/dev/null 2>&1 && printf '%s: %s\n' "$t" "$("$t" --version 2>&1 | head -1)"
 done
-command -v no-mistakes >/dev/null 2>&1 && no-mistakes doctor 2>&1 | grep -E "✓|✗" | head -20
+command -v no-mistakes >/dev/null 2>&1 && no-mistakes doctor 2>&1 | grep -E "✓|✗" | head -20 || true
 if [ "$bad" = 0 ]; then say "OK"; else say "INCOMPLETE"; exit 1; fi

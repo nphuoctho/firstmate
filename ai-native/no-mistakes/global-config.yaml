@@ -1,3 +1,4 @@
+# ai-native-kit-config
 # no-mistakes global config for the AI Native stack (Pi Agent + Firstmate + Herdr).
 # Install to ~/.no-mistakes/config.yaml with ai-native/setup.sh. Applies to every repo on this machine.
 # Repo-level policy lives in each repo's .no-mistakes.yaml; start from project.no-mistakes.yaml.

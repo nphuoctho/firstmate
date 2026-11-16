@@ -19,7 +19,12 @@
 # Let the reviewer ask the supervising agent a question instead of guessing.
 review:
   conversation: true
-  # path_instructions:
+  path_instructions:
+    - path: "**"
+      instructions: |
+        Commit messages and PR titles follow Conventional Commits (type(scope): description).
+        Branch names follow Conventional Branch (feature/, bugfix/, hotfix/, release/, chore/).
+  # More examples:
   #   - path: "docs/**"
   #     instructions: |
   #       Prose changes only. Do not request test coverage.
@@ -66,4 +71,4 @@ commit:
 # How to start the app and what to try, for the Test step. Fill in per repo.
 # test:
 #   instructions: |
-#     Start the app with `pnpm dev`, then try the changed flow.
+#     Start the app the way this repo documents, then try the changed flow.

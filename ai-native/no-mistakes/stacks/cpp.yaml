@@ -2,9 +2,9 @@
 # throwaway fixture. Needs a Makefile with a `test` target. Adjust the globs to the repo layout;
 # clang-tidy reads compile_commands.json when present, else uses the --extra-arg flags.
 commands:
-  lint: "git ls-files '*.c' '*.cc' '*.cpp' '*.h' '*.hpp' | xargs -r clang-format --dry-run --Werror && git ls-files '*.cc' '*.cpp' | xargs -r clang-tidy --warnings-as-errors='*' --quiet --extra-arg=-std=c++17 && git ls-files '*.c' | xargs -r clang-tidy --warnings-as-errors='*' --quiet --extra-arg=-std=c11"
+  lint: "git ls-files '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' | xargs -r clang-format --dry-run --Werror && git ls-files '*.cc' '*.cpp' '*.cxx' | xargs -r clang-tidy --warnings-as-errors='*' --quiet --extra-arg=-std=c++17 && git ls-files '*.c' | xargs -r clang-tidy --warnings-as-errors='*' --quiet --extra-arg=-std=c11"
   test: "make test"
-  format: "git ls-files '*.c' '*.cc' '*.cpp' '*.h' '*.hpp' | xargs -r clang-format -i"
+  format: "git ls-files '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' | xargs -r clang-format -i"
 ignore_patterns:
   - "*.o"
   - "*.a"
