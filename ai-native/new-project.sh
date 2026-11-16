@@ -158,14 +158,29 @@ detect_python() {
       ;;
   esac
   lint=""; test=""; fmt=""
-  # Ruff and pytest count only when the dependency files that this manager's prepare installs list them:
-  # pyproject.toml without its optional extras (pip adds the dev extra only when prepare installs it),
-  # plus the requirements files for pip. A ruff.toml or a [tool.ruff] table alone is configuration.
+  # Ruff and pytest count only when a dependency list that this manager's prepare installs names them:
+  # project dependencies, the uv dev group, the poetry dependency tables, the dev extra when pip installs it,
+  # and the requirements files for pip. A ruff.toml or a [tool.ruff] table alone is configuration.
   ruff_dep=0; ruff_cfg=0
   want_extras=0; case "$prep" in *"'.[dev]'"*) want_extras=1 ;; esac
   deptext=""
   if [ -e "$py" ] && { [ "$pm" != pip ] || [ ! -e "$req" ]; }; then
-    deptext="$(awk -v extras="$want_extras" '/^[[:space:]]*\[[A-Za-z]/ { skip = (extras == 0 && $0 ~ /^[[:space:]]*\[project\.optional-dependencies/) } !skip' "$py")"
+    deptext="$(awk -v pm="$pm" -v extras="$want_extras" '
+      function ok(t, k) {
+        if (pm == "poetry") return (t == "tool.poetry.dependencies" || t ~ /^tool\.poetry\.group\.[^.]+\.dependencies$/)
+        if (t == "project") return k == "dependencies"
+        if (t == "project.optional-dependencies") return extras == 1 && pm == "pip" && k == "dev"
+        if (t == "dependency-groups") return pm == "uv" && k == "dev"
+        if (t == "tool.uv") return pm == "uv" && k == "dev-dependencies"
+        return 0
+      }
+      { s = $0; sub(/#.*/, "", s) }
+      depth <= 0 && s ~ /^[[:space:]]*\[[A-Za-z]/ { t = s; gsub(/[][[:space:]]/, "", t); keep = 0; next }
+      depth <= 0 && match(s, /^[[:space:]]*[A-Za-z0-9_-]+[[:space:]]*=/) {
+        k = substr(s, 1, RLENGTH - 1); gsub(/[[:space:]]/, "", k); keep = ok(t, k)
+      }
+      { if (keep) print s; o = gsub(/\[/, "[", s); c = gsub(/\]/, "]", s); depth += o - c; if (depth < 0) depth = 0 }
+    ' "$py")"
   fi
   if [ "$pm" = pip ]; then
     for f in "$req" "$d/requirements-dev.txt"; do [ -e "$f" ] && deptext="$deptext"$'\n'"$(cat "$f")"; done

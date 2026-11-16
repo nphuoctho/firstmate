@@ -85,6 +85,12 @@ else
   skipped "python command fixtures" "python3 yaml module not installed"
 fi
 if [ "$HAVE_YAML" = 1 ]; then
+d="$(repo py-pip-groups 'pyproject.toml=[project]\nname="a"\ndescription="wraps ruff"\n[dependency-groups]\ndev = ["ruff", "pytest"]\n')"
+check "pip does not install dependency-groups, so no command is set" "$d" 1 'python found in .*no ruff or pytest'
+d="$(repo py-uv-groups 'pyproject.toml=[project]\nname="a"\n[dependency-groups]\ndev = [\n  "ruff",\n  "pytest",\n]\n' 'uv.lock=\n')"
+ycheck "uv installs the dev group, so ruff counts" "$d" 'd["commands"]["lint"]' 'uv run ruff check .'
+d="$(repo py-poetry 'pyproject.toml=[tool.poetry.group.dev.dependencies]\nruff = "^0.5"\npytest = "^8"\n' 'poetry.lock=\n')"
+ycheck "poetry dev group counts" "$d" 'd["commands"]["lint"]' 'poetry run ruff check .'
 d="$(repo py-pytest-cfg 'pyproject.toml=[project]\nname="a"\ndependencies=["ruff"]\n[project.optional-dependencies]\ntest = ["pytest"]\n[tool.pytest.ini_options]\naddopts="-q"\n' 'uv.lock=\n')"
 ycheck "pytest config and an extra do not set a test command" "$d" 'd["commands"].get("test")' 'None'
 fi
