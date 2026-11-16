@@ -1,19 +1,19 @@
-# Universal per-repo no-mistakes policy for AI Native projects.
-# Commit this as <repo>/.no-mistakes.yaml on the DEFAULT branch, then run `no-mistakes init`.
-# commands, agent, review.*, document/test instructions, ci.*, rebase.*, protected_paths, no_ci and
-# disable_project_settings are read ONLY from the default-branch copy; a feature-branch edit is ignored.
+# Per-repo no-mistakes policy for AI Native projects.
+# Commit it as <repo>/.no-mistakes.yaml on the DEFAULT branch, then run `no-mistakes init`.
+# These fields are read only from the default-branch copy, so a feature-branch edit is ignored:
+# commands, agent, review.*, document/test instructions, ci.*, rebase.*, protected_paths, no_ci,
+# disable_project_settings.
 # Schema: https://github.com/kunchenguid/no-mistakes docs/src/content/docs/reference/repo-config.md
-# Repo config silently ignores unknown or misspelled keys, and `no-mistakes doctor`/`status` do not
-# validate this file: check spelling against the schema.
+# The repo file ignores unknown or misspelled keys without a warning, and `no-mistakes doctor` and
+# `status` do not read it. Check key names against the schema.
 
-# REQUIRED: `commands` and `ignore_patterns` for this repo's stack come from stacks/<stack>.yaml.
-# ai-native/new-project.sh <stack> <repo-dir> replaces the marker line below with that snippet.
-# Left unset, the run worktree has no installed dependencies (no node_modules/.venv), so lint and
-# tests fall to an agent that may be unable to run them, and the run can still pass.
-# Commands run via `sh -c` on the daemon host; keep them non-interactive and the test targeted.
-# ignore_patterns matcher: no slash = basename at any depth; "dir/**" = literal path prefix from the
-# repo root; "*" never crosses "/", and "**/" is NOT a recursive wildcard ("**/dist/**" matches nothing).
-# Nested build dirs need one literal entry each, e.g. "apps/web/dist/**".
+# `commands` and `ignore_patterns` are filled in by ai-native/new-project.sh in place of the marker
+# line below. Keep the commands: the run worktree has no node_modules or .venv, so without them the
+# lint and test steps depend on an agent that may not be able to run anything, and the run can pass.
+# Commands run through `sh -c` on the daemon host. Keep them non-interactive.
+# ignore_patterns: a pattern with no slash matches that name at any depth. "dir/**" matches a path
+# prefix from the repo root. "*" does not cross "/", and "**/" is not a wildcard, so "**/dist/**"
+# matches nothing. List each nested build folder on its own line, e.g. "apps/web/dist/**".
 # @@STACK@@
 
 # Let the reviewer ask the supervising agent a question instead of guessing.
@@ -24,8 +24,8 @@ review:
   #     instructions: |
   #       Prose changes only. Do not request test coverage.
 
-# Review findings always park for a decision. A failing configured lint/test command parks too
-# (its finding is ask-user), so these budgets only apply to agent-produced auto-fix findings.
+# Review findings always wait for a decision. A failing lint or test command also waits, so these
+# counts only apply to fixes the agent produced itself.
 auto_fix:
   review: 0
   rebase: 3
@@ -42,25 +42,28 @@ ci:
 rebase:
   strategy: rebase
 
-# Stop automatic fix commits from rewriting these; the step parks for an operator instead.
+# Keep automatic fix commits away from these paths; the step waits for a person instead.
 # protected_paths:
 #   - ".github/**"
 
-# Enable ONLY for agent-orchestration repos (like Firstmate itself), whose AGENTS.md / CLAUDE.md would
-# give a gate agent a supervisor identity. Ordinary projects want the gate agent to read them.
+# Turn this on only for repos that run agents, like Firstmate itself, where AGENTS.md or CLAUDE.md
+# would give the gate agent a supervisor role. Other projects want the gate agent to read them.
 # disable_project_settings: true
 
-# Set only if the repo intentionally has no CI; otherwise an empty check list is treated as not ready.
+# Set this only if the repo has no CI on purpose. Otherwise an empty check list counts as not ready.
 # no_ci: true
 
-# Pull requests target the forge default branch unless you integrate elsewhere.
+# Pull requests go to the forge's default branch unless you set another one.
 # pr:
 #   base_branch: develop
 
+# Commits made by no-mistakes follow Conventional Commits, for example
+# "chore(no-mistakes-lint): fix unused import". PR titles are left on the default, which already
+# uses the Conventional Commits form, so pr.title_format is not set. See rules/git-conventions.md.
 commit:
   fix_message: "chore(no-mistakes-{{.Step}}): {{.Summary}}"
 
-# Runbook for the Test step: how to start the app and what to exercise. Fill per repo.
+# How to start the app and what to try, for the Test step. Fill in per repo.
 # test:
 #   instructions: |
-#     Start the app with `pnpm dev`, then exercise the changed flow.
+#     Start the app with `pnpm dev`, then try the changed flow.
