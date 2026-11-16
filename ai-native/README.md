@@ -46,7 +46,7 @@ Several stacks in one repo are combined, each run inside its folder, for example
 A stack found in the root covers same-stack folders below it.
 Whatever the script had to guess is printed at the end.
 
-The commands come from `no-mistakes/stacks/*.yaml`, the one place they are defined. To add a stack, add a file there and a detector in the script.
+The command templates and ignore patterns come from `no-mistakes/stacks/*.yaml`; the script picks, adapts or drops each command based on what the detector finds. To add a stack, add a file there and a detector in the script.
 
 **Options.**
 - `--dry-run` prints what was detected and the file it would write, and writes nothing.
