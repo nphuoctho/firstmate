@@ -47,7 +47,7 @@ done
 
 # no-mistakes global config. Installed when absent. Replaced (after a timestamped .bak copy) only when the
 # installer wrote it in this run. Any other existing config, with or without the kit marker, is never touched.
-nm_cfg_sum() { cksum <"$NM_HOME_DIR/config.yaml" 2>/dev/null || true; }
+nm_cfg_sum() { { cksum <"$NM_HOME_DIR/config.yaml"; } 2>/dev/null || true; }
 install_nm_config() {
   local f="$NM_HOME_DIR/config.yaml" fresh="${1:-}"
   if [ ! -s "$f" ]; then

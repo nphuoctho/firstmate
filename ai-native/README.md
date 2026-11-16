@@ -58,7 +58,7 @@ It looks for marker files in the repo root and one folder down:
 
 It writes a command only when the tool or script exists:
 - Node: only the `lint`, `typecheck`, `test` and `format` scripts in `package.json`.
-- Python: ruff only when it is listed as a dependency (a `ruff.toml` or `[tool.ruff]` table alone is not enough, because `uv run ruff` would fail). pytest only when the repo mentions it. A Python repo with neither gets no config; name `python` to get the stock uv commands.
+- Python: ruff only when it is listed as a dependency (a `ruff.toml` or `[tool.ruff]` table alone is not enough, because `uv run ruff` would fail). pytest only when it is listed as a dependency that prepare installs. A Python repo with neither gets no config; name `python` to get the stock uv commands.
 - C++: `make test` only if the Makefile has a `test` target; clang-tidy only if there is a `.clang-tidy` file.
 
 Several stacks in one repo are combined, each run inside its folder, for example `(cd 'web' && npm ci) && (cd 'svc' && go mod download)`.

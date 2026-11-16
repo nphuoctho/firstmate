@@ -185,7 +185,7 @@ detect_python() {
     test="$(snip_cmd python test)"; test="${test/#uv run /$runner}"
   fi
   [ -n "$lint" ] || [ "$ruff_cfg" = 1 ] || note "$(where "$dir"): ruff is not configured, so no lint command is set."
-  [ -n "$test" ] || note "$(where "$dir"): pytest is not configured, so no test command is set."
+  [ -n "$test" ] || note "$(where "$dir"): pytest is not listed as a dependency that prepare installs, so no test command is set."
   if [ -z "$lint$test" ]; then
     PY_EMPTY="${PY_EMPTY:+$PY_EMPTY, }$(where "$dir")"
     return 0
