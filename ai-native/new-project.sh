@@ -146,8 +146,12 @@ detect_python() {
     poetry) runner="poetry run "; prep="poetry install --no-interaction" ;;
     pip)
       runner=".venv/bin/"
-      if [ -e "$req" ]; then prep="python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
-      else prep="python3 -m venv .venv && .venv/bin/pip install -e ."; fi
+      prep="python3 -m venv .venv"
+      if [ -e "$req" ]; then prep="$prep && .venv/bin/pip install -r requirements.txt"; fi
+      if [ -e "$d/requirements-dev.txt" ]; then prep="$prep && .venv/bin/pip install -r requirements-dev.txt"; fi
+      if [ -e "$py" ] && [ ! -e "$req" ]; then
+        if grep -Eq '^dev[[:space:]]*=' "$py"; then prep="$prep && .venv/bin/pip install -e '.[dev]'"; else prep="$prep && .venv/bin/pip install -e ."; fi
+      fi
       note "$(where "$dir"): no uv.lock or poetry.lock, so pip in a .venv is a guess."
       ;;
   esac
@@ -230,7 +234,7 @@ if [ "$mode" = auto ]; then
       [ "${#E_STACK[@]}" -gt "$before" ] && found="$found$stack:$dir "
     done
   done
-  if [ "${#E_STACK[@]}" -eq 0 ]; then for n in "${NOTES[@]}"; do printf '  - %s\n' "$n" >&2; done; fi
+  if [ "${#E_STACK[@]}" -eq 0 ]; then for n in ${NOTES[@]+"${NOTES[@]}"}; do printf '  - %s\n' "$n" >&2; done; fi
   [ "${#E_STACK[@]}" -gt 0 ] || die "found no known stack in $repo (markers: package.json, pyproject.toml, requirements.txt, go.mod, Cargo.toml, Makefile with C/C++ files). Name one: $(list)"
 else
   IFS=',' read -r -a items <<<"$named"
