@@ -100,12 +100,19 @@ detect_node() {
   fi
   run="$pm run "
   lock=0
-  case "$how" in "no lockfile") ;; *) lock=1 ;; esac
+  case "$pm" in
+    npm) [ -e "$d/package-lock.json" ] || [ -e "$d/npm-shrinkwrap.json" ] && lock=1 ;;
+    pnpm) [ -e "$d/pnpm-lock.yaml" ] && lock=1 ;;
+    bun) { [ -e "$d/bun.lock" ] || [ -e "$d/bun.lockb" ]; } && lock=1 ;;
+    yarn) [ -e "$d/yarn.lock" ] && lock=1 ;;
+  esac
+  if [ "$lock" = 0 ] && [ "$how" != "no lockfile" ]; then note "$(where "$dir"): no $pm lockfile, so prepare uses '$pm install'."; fi
   case "$pm" in
     npm) if [ "$lock" = 1 ]; then prep="$(snip_cmd node prepare)"; else prep="npm install"; fi ;;
-    pnpm) prep="pnpm install --frozen-lockfile" ;;
-    bun) prep="bun install --frozen-lockfile" ;;
-    yarn) if [ -e "$d/.yarnrc.yml" ]; then prep="yarn install --immutable"; else prep="yarn install --frozen-lockfile"; fi ;;
+    pnpm) if [ "$lock" = 1 ]; then prep="pnpm install --frozen-lockfile"; else prep="pnpm install"; fi ;;
+    bun) if [ "$lock" = 1 ]; then prep="bun install --frozen-lockfile"; else prep="bun install"; fi ;;
+    yarn) if [ "$lock" = 0 ]; then prep="yarn install"
+      elif [ -e "$d/.yarnrc.yml" ]; then prep="yarn install --immutable"; else prep="yarn install --frozen-lockfile"; fi ;;
   esac
   has_script() { jq -e --arg n "$1" '(.scripts[$n] // "") | type == "string" and . != ""' "$pkg" >/dev/null 2>&1; }
   lint=""
@@ -175,8 +182,8 @@ detect_rust() {
 detect_cpp() {
   local dir=$1 d test lint
   d="$(path_of "$dir")"
-  if [ -z "$(find "$d" -maxdepth 3 -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -print -quit 2>/dev/null)" ]; then
-    note "$(where "$dir")Makefile has no C or C++ files next to it, so it is not treated as a C/C++ project."
+  if [ -z "$(git -C "$d" ls-files -- '*.c' '*.cc' '*.cpp' '*.h' '*.hpp' 2>/dev/null | head -n 1)" ]; then
+    note "$(where "$dir")Makefile has no tracked C or C++ files under it, so it is not treated as a C/C++ project."
     return
   fi
   test=""
@@ -232,7 +239,8 @@ else
     case "$item" in *:*) dir="${item#*:}" ;; esac
     case "$stack" in *[!a-z0-9_-]* | "") die "invalid stack name '$stack' (stacks: $(list))" ;; esac
     [ -f "$STACKS/$stack.yaml" ] || die "unknown stack '$stack' (stacks: $(list))"
-    case "$dir" in *[!A-Za-z0-9._/-]* | "") die "invalid folder '$dir'" ;; esac
+    while [ "${#dir}" -gt 1 ] && [ "${dir%/}" != "$dir" ]; do dir="${dir%/}"; done
+    case "$dir" in *[!A-Za-z0-9._/-]* | "" | /* | ..  | ../* | */../* | */..) die "invalid folder '$dir'" ;; esac
     [ -d "$repo/$dir" ] || die "no folder '$dir' in $repo"
     add_entry "$stack" "$dir" "$stack (named)" "$(snip_cmd "$stack" prepare)" "$(snip_cmd "$stack" lint)" "$(snip_cmd "$stack" test)" "$(snip_cmd "$stack" format)"
   done
