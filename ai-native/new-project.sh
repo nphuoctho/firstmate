@@ -136,7 +136,7 @@ detect_python() {
   local dir=$1 d py req pm how runner prep lint test fmt files f
   d="$(path_of "$dir")"; py="$d/pyproject.toml"; req="$d/requirements.txt"
   files=()
-  for f in "$py" "$req" "$d/tox.ini" "$d/setup.cfg" "$d/pytest.ini" "$d/ruff.toml" "$d/.ruff.toml"; do [ -e "$f" ] && files+=("$f"); done
+  for f in "$py" "$req" "$d/requirements-dev.txt" "$d/tox.ini" "$d/setup.cfg" "$d/pytest.ini" "$d/ruff.toml" "$d/.ruff.toml"; do [ -e "$f" ] && files+=("$f"); done
   if [ -e "$d/uv.lock" ]; then pm=uv; how="uv.lock"
   elif [ -e "$d/poetry.lock" ] || { [ -e "$py" ] && grep -q '^\[tool\.poetry' "$py"; }; then pm=poetry; how="poetry"
   else pm=pip; how="no lock file"
@@ -156,7 +156,7 @@ detect_python() {
       ;;
   esac
   lint=""; test=""; fmt=""
-  if [ -e "$d/ruff.toml" ] || [ -e "$d/.ruff.toml" ] || { [ -e "$py" ] && grep -qi 'ruff' "$py"; } || { [ -e "$req" ] && grep -qi 'ruff' "$req"; }; then
+  if [ -e "$d/ruff.toml" ] || [ -e "$d/.ruff.toml" ] || { [ "${#files[@]}" -gt 0 ] && grep -qsi 'ruff' "${files[@]}"; }; then
     lint="$(snip_cmd python lint)"; lint="${lint/#uv run /$runner}"
     fmt="$(snip_cmd python format)"; fmt="${fmt/#uv run /$runner}"
   fi
