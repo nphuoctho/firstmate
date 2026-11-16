@@ -167,7 +167,8 @@ detect_python() {
   if [ -e "$py" ] && { [ "$pm" != pip ] || [ ! -e "$req" ]; }; then
     deptext="$(awk -v pm="$pm" -v extras="$want_extras" '
       function ok(t, k) {
-        if (pm == "poetry") return (t == "tool.poetry.dependencies" || t ~ /^tool\.poetry\.group\.[^.]+\.dependencies$/)
+        if (pm == "poetry" && t == "project") return k == "dependencies"
+        if (pm == "poetry") return (t == "tool.poetry.dependencies" || t == "tool.poetry.dev-dependencies" || t ~ /^tool\.poetry\.group\.[^.]+\.dependencies$/)
         if (t == "project") return k == "dependencies"
         if (t == "project.optional-dependencies") return extras == 1 && pm == "pip" && k == "dev"
         if (t == "dependency-groups") return pm == "uv" && k == "dev"

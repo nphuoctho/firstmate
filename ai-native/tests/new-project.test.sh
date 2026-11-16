@@ -91,6 +91,10 @@ d="$(repo py-uv-groups 'pyproject.toml=[project]\nname="a"\n[dependency-groups]\
 ycheck "uv installs the dev group, so ruff counts" "$d" 'd["commands"]["lint"]' 'uv run ruff check .'
 d="$(repo py-poetry 'pyproject.toml=[tool.poetry.group.dev.dependencies]\nruff = "^0.5"\npytest = "^8"\n' 'poetry.lock=\n')"
 ycheck "poetry dev group counts" "$d" 'd["commands"]["lint"]' 'poetry run ruff check .'
+d="$(repo py-poetry-legacy 'pyproject.toml=[tool.poetry]\nname="a"\n[tool.poetry.dev-dependencies]\nruff = "^0.5"\npytest = "^7"\n' 'poetry.lock=\n')"
+ycheck "poetry legacy dev-dependencies count" "$d" 'd["commands"]["lint"]' 'poetry run ruff check .'
+d="$(repo py-poetry2 'pyproject.toml=[project]\nname="a"\ndependencies=["pytest"]\n[tool.poetry.group.dev.dependencies]\nruff = "^0.5"\n' 'poetry.lock=\n')"
+ycheck "poetry 2 project dependencies count" "$d" 'd["commands"]["test"]' 'poetry run pytest -q'
 d="$(repo py-pytest-cfg 'pyproject.toml=[project]\nname="a"\ndependencies=["ruff"]\n[project.optional-dependencies]\ntest = ["pytest"]\n[tool.pytest.ini_options]\naddopts="-q"\n' 'uv.lock=\n')"
 ycheck "pytest config and an extra do not set a test command" "$d" 'd["commands"].get("test")' 'None'
 fi
