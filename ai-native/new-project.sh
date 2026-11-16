@@ -150,7 +150,7 @@ detect_python() {
       if [ -e "$req" ]; then prep="$prep && .venv/bin/pip install -r requirements.txt"; fi
       if [ -e "$d/requirements-dev.txt" ]; then prep="$prep && .venv/bin/pip install -r requirements-dev.txt"; fi
       if [ -e "$py" ] && [ ! -e "$req" ]; then
-        if grep -Eq '^dev[[:space:]]*=' "$py"; then prep="$prep && .venv/bin/pip install -e '.[dev]'"; else prep="$prep && .venv/bin/pip install -e ."; fi
+        if awk '/^[[:space:]]*\[/ { t = ($0 ~ /^[[:space:]]*\[project\.optional-dependencies\][[:space:]]*(#.*)?$/) } t && /^[[:space:]]*dev[[:space:]]*=/ { f = 1 } END { exit !f }' "$py"; then prep="$prep && .venv/bin/pip install -e '.[dev]'"; else prep="$prep && .venv/bin/pip install -e ."; note "$(where "$dir"): pyproject.toml has no [project.optional-dependencies] dev extra, so prepare may not install ruff or pytest."; fi
       fi
       note "$(where "$dir"): no uv.lock or poetry.lock, so pip in a .venv is a guess."
       ;;
