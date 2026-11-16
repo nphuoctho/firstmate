@@ -66,4 +66,4 @@ commit:
 # How to start the app and what to try, for the Test step. Fill in per repo.
 # test:
 #   instructions: |
-#     Start the app with `pnpm dev`, then try the changed flow.
+#     Start the app the way this repo documents, then try the changed flow.

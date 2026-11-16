@@ -15,14 +15,17 @@
 #   requirements.txt          python  (uv, poetry or pip)
 #   go.mod                    go
 #   Cargo.toml                rust
-#   Makefile + C/C++ files    cpp
+#   Makefile + committed      cpp     (.c .cc .cpp .cxx .h .hh .hpp .hxx; git ls-files must list one)
+#   C/C++ files
 # It emits a command only when its tool or script exists. A stack found in the root also covers any
 # same-stack folder below it. Anything it had to guess is listed at the end.
 #
 # --dry-run  print the detection and the proposed file; write nothing.
 # --verify   clone the repo with `git clone --local` into a temp directory and run the generated
-#            prepare, lint and test commands there. Each is reported as ran, FAILED or skipped.
-#            Only committed files are cloned. Exit status is 1 if any step failed.
+#            prepare, lint and test commands there. Each is reported as ran, FAILED or skipped. A step whose
+#            tool is not installed is reported as "skipped: <tool> not installed". Only committed files are
+#            cloned. Exit status is 1 if any step failed or was skipped for a missing tool, so that is never
+#            a silent pass. Colour is turned off so failure tails stay readable.
 #
 # The command sets come from ai-native/no-mistakes/stacks/*.yaml. Never overwrites an existing
 # .no-mistakes.yaml.
@@ -71,6 +74,7 @@ snip_ignores() { sed -n 's/^  - "\(.*\)"$/\1/p' "$STACKS/$1.yaml"; }
 
 E_STACK=() E_DIR=() E_PREP=() E_LINT=() E_TEST=() E_FMT=() E_LABEL=()
 NOTES=()
+PY_EMPTY=""
 note() { NOTES+=("$*"); }
 
 add_entry() { # stack dir label prepare lint test format
@@ -156,7 +160,16 @@ detect_python() {
       ;;
   esac
   lint=""; test=""; fmt=""
-  if [ -e "$d/ruff.toml" ] || [ -e "$d/.ruff.toml" ] || { [ "${#files[@]}" -gt 0 ] && grep -qsi 'ruff' "${files[@]}"; }; then
+  # Ruff counts only when it is listed as a dependency (a requirements line or a pyproject dependency
+  # entry), because `uv run ruff`, `poetry run ruff` and .venv/bin/ruff can only run what the manager
+  # installs. A ruff.toml or a [tool.ruff] table alone is configuration, not a runnable tool.
+  ruff_dep=0
+  if [ "${#files[@]}" -gt 0 ] && grep -qsiE "^[[:space:]]*[\"']?ruff([[:space:]<>=~!;,\"'[]|\$)" "${files[@]}"; then ruff_dep=1; fi
+  if [ "$ruff_dep" = 0 ]; then
+    if [ -e "$d/ruff.toml" ] || [ -e "$d/.ruff.toml" ] || { [ -e "$py" ] && grep -qs '^\[tool\.ruff' "$py"; }; then
+      note "$(where "$dir"): ruff is configured but not listed as a dependency, so 'ruff' would not run; add it to the dev dependencies to get a lint command."
+    fi
+  else
     lint="$(snip_cmd python lint)"; lint="${lint/#uv run /$runner}"
     fmt="$(snip_cmd python format)"; fmt="${fmt/#uv run /$runner}"
   fi
@@ -166,6 +179,7 @@ detect_python() {
   [ -n "$lint" ] || note "$(where "$dir"): ruff is not configured, so no lint command is set."
   [ -n "$test" ] || note "$(where "$dir"): pytest is not configured, so no test command is set."
   if [ -z "$lint$test" ]; then
+    PY_EMPTY="${PY_EMPTY:+$PY_EMPTY, }$(where "$dir")"
     return 0
   fi
   add_entry python "$dir" "python ($pm, from $how)" "$prep" "$lint" "$test" "$fmt"
@@ -186,8 +200,8 @@ detect_rust() {
 detect_cpp() {
   local dir=$1 d test lint
   d="$(path_of "$dir")"
-  if [ -z "$(git -C "$d" ls-files -- '*.c' '*.cc' '*.cpp' '*.h' '*.hpp' 2>/dev/null | head -n 1)" ]; then
-    note "$(where "$dir"): Makefile has no tracked C or C++ files under it, so it is not treated as a C/C++ project."
+  if [ -z "$(git -C "$d" ls-files -- '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' 2>/dev/null | head -n 1)" ]; then
+    note "$(where "$dir"): Makefile has no committed C or C++ files (.c .cc .cpp .cxx .h .hh .hpp .hxx) under it, so it is not treated as a C/C++ project."
     return
   fi
   test=""
@@ -235,10 +249,14 @@ if [ "$mode" = auto ]; then
     done
   done
   if [ "${#E_STACK[@]}" -eq 0 ]; then for n in ${NOTES[@]+"${NOTES[@]}"}; do printf '  - %s\n' "$n" >&2; done; fi
-  [ "${#E_STACK[@]}" -gt 0 ] || die "found no known stack in $repo (markers: package.json, pyproject.toml, requirements.txt, go.mod, Cargo.toml, Makefile with C/C++ files). Name one: $(list)"
+  [ -z "$PY_EMPTY" ] || [ "${#E_STACK[@]}" -gt 0 ] || die "python found in $PY_EMPTY, but it lists no ruff or pytest, so there is nothing to run. Add them to the dev dependencies, or name the stack: 'python' writes the stock uv commands (uv sync --frozen, ruff, pytest), which only fit a repo that has a uv.lock. Stacks: $(list)"
+  [ "${#E_STACK[@]}" -gt 0 ] || die "found no known stack in $repo (markers: package.json, pyproject.toml, requirements.txt, go.mod, Cargo.toml, Makefile with committed C/C++ files). Name one: $(list)"
 else
   IFS=',' read -r -a items <<<"$named"
+  seen_items=" "
   for item in "${items[@]}"; do
+    case "$seen_items" in *" $item "*) note "stack '$item' was named twice; used once."; continue ;; esac
+    seen_items="$seen_items$item "
     stack="${item%%:*}"; dir="."
     case "$item" in *:*) dir="${item#*:}" ;; esac
     case "$stack" in *[!a-z0-9_-]* | "") die "invalid stack name '$stack' (stacks: $(list))" ;; esac
@@ -308,9 +326,11 @@ else
   tmp="$(mktemp "$repo/.no-mistakes.yaml.XXXXXX")"
   trap 'rm -f "$tmp"' EXIT
   compose >"$tmp"
+  chmod 0644 "$tmp"
   # ln fails if the target appeared meanwhile, so a racing file is never replaced.
   ln "$tmp" "$out" 2>/dev/null || die "$out appeared meanwhile; not overwriting"
   printf 'wrote %s. Commit it on the default branch, then run: no-mistakes init\n' "$out"
+  printf 'Commit and branch naming rules (and how to use them with Firstmate): %s\n' "$HERE/rules/git-conventions.md"
 fi
 
 if [ "${#NOTES[@]}" -gt 0 ]; then
@@ -325,21 +345,46 @@ printf '\nverify (git clone --local, then run each command in the clone):\n'
 work="$(mktemp -d)"
 trap 'rm -rf "$work"; [ -z "${tmp:-}" ] || rm -f "$tmp"' EXIT
 git clone --local -q "$repo" "$work/clone" 2>"$work/clone.log" || { cat "$work/clone.log" >&2; die "git clone --local failed (does the repo have a commit?)"; }
-failed=0 prep_ok=1
+# First command word that is not installed, or nothing. Words with a path or "=" and shell builtins are skipped.
+missing_tool() {
+  local seg w x words
+  while IFS= read -r seg; do
+    seg="${seg#"${seg%%[![:space:](!]*}"}"
+    read -ra words <<<"$seg" || true
+    w="${words[0]:-}"
+    if [ "$w" = xargs ]; then
+      w=""
+      for x in "${words[@]:1}"; do case "$x" in -*) ;; *) w="$x"; break ;; esac; done
+    fi
+    case "$w" in "" | cd | */* | *=* | .*) continue ;; esac
+    command -v "$w" >/dev/null 2>&1 || { printf '%s' "$w"; return 0; }
+  done < <(printf '%s\n' "$1" | sed 's/&&/\n/g; s/|/\n/g')
+}
+strip_colour() { sed "s/$(printf '\033')\\[[0-9;]*[A-Za-z]//g"; }
+
+failed=0 skipped=0 prep_ok=1
 for step in prepare lint test; do
   case "$step" in prepare) c="$PREP" ;; lint) c="$LINT" ;; test) c="$TEST" ;; esac
   if [ -z "$c" ]; then printf '  %-8s skipped: no command is set\n' "$step"; continue; fi
-  if [ "$step" != prepare ] && [ "$prep_ok" = 0 ]; then printf '  %-8s skipped: prepare failed\n' "$step"; continue; fi
+  if [ "$step" != prepare ] && [ "$prep_ok" = 0 ]; then printf '  %-8s skipped: prepare did not pass\n' "$step"; continue; fi
+  tool="$(missing_tool "$c")"
+  if [ -n "$tool" ]; then
+    printf '  %-8s skipped: %s not installed\n' "$step" "$tool"
+    skipped=1
+    [ "$step" != prepare ] || prep_ok=0
+    continue
+  fi
   set +e
-  if command -v timeout >/dev/null 2>&1; then (cd "$work/clone" && timeout 900 sh -c "$c") >"$work/$step.log" 2>&1; else (cd "$work/clone" && sh -c "$c") >"$work/$step.log" 2>&1; fi
+  if command -v timeout >/dev/null 2>&1; then (cd "$work/clone" && NO_COLOR=1 CARGO_TERM_COLOR=never timeout 900 sh -c "$c") >"$work/$step.log" 2>&1; else (cd "$work/clone" && NO_COLOR=1 CARGO_TERM_COLOR=never sh -c "$c") >"$work/$step.log" 2>&1; fi
   rc=$?
   set -e
   if [ "$rc" = 0 ]; then printf '  %-8s ran, passed\n' "$step"
   else
     printf '  %-8s FAILED (exit %s)\n' "$step" "$rc"
-    tail -n 5 "$work/$step.log" | sed 's/^/             | /'
+    tail -n 5 "$work/$step.log" | strip_colour | sed 's/^/             | /'
     failed=1
     [ "$step" != prepare ] || prep_ok=0
   fi
 done
-exit "$failed"
+if [ "$skipped" = 1 ] && [ "$failed" = 0 ]; then printf 'verify incomplete: a tool is missing, so some steps did not run.\n'; fi
+[ "$failed" = 0 ] && [ "$skipped" = 0 ]
