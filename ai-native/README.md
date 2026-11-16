@@ -144,7 +144,7 @@ Loosening it (`workflow.worktree_mode`) is your call, made in your own terminal.
 
 ## Verification
 
-- `ai-native/tests/new-project.test.sh` builds throwaway repos (node, python, go, rust, make C++, a monorepo, an empty repo) and checks detection and `--dry-run`. It installs nothing and runs in about a second.
+- `ai-native/tests/new-project.test.sh` builds throwaway repos (node, python, go, rust, make C++, a monorepo, an empty repo) and checks detection and `--dry-run`. It also runs `setup.sh` in a sandbox HOME to check that an existing config is left alone.
 - `setup.sh --check` on an empty sandbox lists what is missing and writes nothing. A second full run changes nothing, and a config with the kit marker or a hand-tuned config survives byte for byte.
 - Generated files load through the strict no-mistakes v1.106.1 config loader, not just `doctor`, which never reads them.
 - `new-project.sh --verify` passes on clean fixtures (Go, Rust, C++, Node, Python with uv and with pip) and fails on a deliberate lint defect. yarn and bun commands are generated but were never run.

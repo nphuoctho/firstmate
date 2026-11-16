@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Fast checks for ai-native/new-project.sh on throwaway repos. Detection and --dry-run only: nothing is
-# installed and --verify is never run. A fixture is skipped when a tool it needs is missing.
+# Fast checks for ai-native/new-project.sh on throwaway repos (detection and --dry-run, never --verify),
+# plus setup.sh argument and config-preservation checks in a sandbox HOME. A fixture is skipped when a
+# tool it needs is missing.
 # Usage: ai-native/tests/new-project.test.sh
 set -uo pipefail
 
@@ -14,6 +15,15 @@ pass=0 fail=0 skip=0
 ok() { pass=$((pass + 1)); printf '  ok    %s\n' "$1"; }
 bad() { fail=$((fail + 1)); printf '  FAIL  %s\n' "$1"; [ -z "${2:-}" ] || printf '%s\n' "$2" | sed 's/^/        | /'; }
 skipped() { skip=$((skip + 1)); printf '  skip  %s (%s)\n' "$1" "$2"; }
+
+# yget <repo> <python expr over d>: parses the proposed .no-mistakes.yaml (--dry-run) and prints the value.
+yget() {
+  "$NP" --dry-run "$1" 2>/dev/null | awk '/^---$/ { n++; next } n == 1' |
+    python3 -c 'import sys, yaml; d = yaml.safe_load(sys.stdin); print(eval(sys.argv[1]))' "$2"
+}
+# ycheck <label> <repo> <python expr> <want>
+ycheck() { local got; got="$(yget "$2" "$3" 2>&1)"; if [ "$got" = "$4" ]; then ok "$1"; else bad "$1: got '$got', wanted '$4'"; fi; }
+HAVE_YAML=0; python3 -c 'import yaml' 2>/dev/null && HAVE_YAML=1
 
 # repo <name> [file...]: a git repo whose files are given as path=content pairs, committed.
 repo() {
@@ -56,24 +66,29 @@ else
   skipped "node and monorepo fixtures" "jq not installed"
 fi
 
+if [ "$HAVE_YAML" = 1 ]; then
 d="$(repo py-uv 'pyproject.toml=[project]\nname="a"\ndependencies=["ruff>=0.5","pytest"]\n' 'uv.lock=\n')"
-check "python uv sets the ruff lint command" "$d" 0 'lint: "uv run ruff check \."'
-d="$(repo py-dev 'requirements.txt=x\n' 'pyproject.toml=[project.optional-dependencies]\ndev = ["pytest", "ruff"]\n')"
-check "python one-line dev array sets the ruff lint command" "$d" 0 'lint: "\.venv/bin/ruff check \."'
+ycheck "python uv sets the ruff lint command" "$d" 'd["commands"]["lint"]' 'uv run ruff check .'
+d="$(repo py-dev 'pyproject.toml=[project.optional-dependencies]\ndev = ["pytest", "ruff"]\n')"
+ycheck "pip installs the dev extra, so its one-line ruff counts" "$d" 'd["commands"]["lint"]' '.venv/bin/ruff check .'
+d="$(repo py-extra-uv 'pyproject.toml=[project]\nname="a"\ndependencies=["pytest"]\n[project.optional-dependencies]\ndev = ["ruff"]\n' 'uv.lock=\n')"
+ycheck "uv sync skips extras, so ruff there sets no lint" "$d" 'd["commands"].get("lint")' 'None'
+d="$(repo py-extra-req 'requirements.txt=pytest\n' 'pyproject.toml=[project.optional-dependencies]\ndev = ["ruff"]\n')"
+ycheck "requirements.txt prepare skips the pyproject extra, so no lint" "$d" 'd["commands"].get("lint")' 'None'
 d="$(repo py-req 'requirements.txt=ruff==0.5\npytest\n')"
-check "python requirements" "$d" 0 '\.venv/bin/ruff'
+ycheck "python requirements sets the venv ruff command" "$d" 'd["commands"]["lint"]' '.venv/bin/ruff check .'
+d="$(repo py-toolruff 'pyproject.toml=[project]\nname="a"\ndependencies=["pytest"]\n[tool.ruff]\nline-length=100\n' 'uv.lock=\n')"
+ycheck "ruff table alone sets no lint" "$d" 'd["commands"].get("lint")' 'None'
+d="$(repo py-rufftoml 'requirements.txt=pytest\n' 'ruff.toml=# Ruff settings\nline-length=100\n')"
+ycheck "ruff.toml with a Ruff comment sets no lint" "$d" 'd["commands"].get("lint")' 'None'
+else
+  skipped "python command fixtures" "python3 yaml module not installed"
+fi
 d="$(repo py-none 'requirements.txt=flask\n')"
 check "python without ruff or pytest says python was found" "$d" 1 'python found in .*no ruff or pytest'
-d="$(repo py-toolruff 'pyproject.toml=[project]\nname="a"\ndependencies=["pytest"]\n[tool.ruff]\nline-length=100\n' 'uv.lock=\n')"
-check "ruff table without the dependency sets no lint" "$d" 0 'ruff is configured but not listed as a dependency'
+d="$(repo py-toolruff2 'pyproject.toml=[project]\nname="a"\ndependencies=["pytest"]\n[tool.ruff]\nline-length=100\n' 'uv.lock=\n')"
+check "ruff table without the dependency says so" "$d" 0 'ruff is configured but not listed as a dependency'
 if "$NP" --dry-run "$d" 2>&1 | grep -q 'ruff is not configured'; then bad "contradictory ruff notes"; else ok "ruff notes do not contradict"; fi
-out="$("$NP" --dry-run "$d" 2>&1)"
-if grep -q '^  lint: "' <<<"$out"; then bad "ruff table alone set a lint command"; else ok "no lint command from a ruff table alone"; fi
-
-d="$(repo py-rufftoml 'requirements.txt=pytest\n' 'ruff.toml=# Ruff settings\nline-length=100\n')"
-check "ruff.toml with a Ruff comment is not a dependency" "$d" 0 'ruff is configured but not listed as a dependency'
-out="$("$NP" --dry-run "$d" 2>&1)"
-if grep -q '^  lint: "' <<<"$out"; then bad "ruff.toml comment set a lint command"; else ok "no lint command from a ruff.toml comment"; fi
 
 d="$(repo go 'go.mod=module x\n')"
 check "go" "$d" 0 'go vet'
@@ -94,7 +109,10 @@ mode="$(stat -c %a "$d/.no-mistakes.yaml" 2>/dev/null || stat -f %Lp "$d/.no-mis
 if [ "$mode" = 644 ]; then ok "written file has mode 644"; else bad "written file mode is $mode"; fi
 if grep -q 'Conventional Commits' <<<"$out" && grep -q 'Conventional Branch' <<<"$out" && grep -q -- '--branch-prefix' <<<"$out"; then ok "write prints the git rules inline"; else bad "git rules not printed" "$out"; fi
 if grep -q 'git-conventions.md' <<<"$out"; then bad "output points into the kit checkout"; else ok "output has no kit path"; fi
-if grep -q 'path: "\*\*"' "$d/.no-mistakes.yaml" && grep -q 'Conventional Branch' "$d/.no-mistakes.yaml"; then ok "generated file has the review instruction"; else bad "no review path instruction in generated file"; fi
+if [ "$HAVE_YAML" = 1 ]; then
+  got="$(python3 -c 'import sys, yaml; p = yaml.safe_load(open(sys.argv[1]))["review"]["path_instructions"][0]; print(p["path"], "Conventional Commits" in p["instructions"], "Conventional Branch" in p["instructions"])' "$d/.no-mistakes.yaml" 2>&1)"
+  if [ "$got" = '** True True' ]; then ok "generated file has the review path instruction"; else bad "review path instruction wrong: $got"; fi
+fi
 if "$NP" "$d" >/dev/null 2>&1; then bad "second write overwrote the file"; else ok "second write refuses"; fi
 
 # setup.sh must reject an unknown argument before doing anything.
@@ -106,14 +124,9 @@ sb="$(mktemp -d)"; mkdir -p "$sb/nm" "$sb/fm"
 printf 'agent: claude\nmax_concurrent_runs: 2\n' >"$sb/nm/config.yaml"; cp "$sb/nm/config.yaml" "$sb/orig"
 out="$(HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$PATH" "$HERE/setup.sh" --check 2>&1)"
 if cmp -s "$sb/orig" "$sb/nm/config.yaml" && ! grep -q 'MISSING: no-mistakes global config' <<<"$out" && grep -q 'left alone' <<<"$out"; then ok "--check leaves a tuned config alone"; else bad "--check mishandled a tuned config" "$out"; fi
-REAL_DEFAULT="$HOME/.no-mistakes/config.yaml.bak-20261027"
-if [ -r "$REAL_DEFAULT" ]; then
-  { cat "$REAL_DEFAULT"; printf 'ci_timeout: 1h\n'; } >"$sb/nm/config.yaml"; cp "$sb/nm/config.yaml" "$sb/orig"
-  out="$(HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$PATH" "$HERE/setup.sh" --check 2>&1)"
-  if cmp -s "$sb/orig" "$sb/nm/config.yaml" && ! ls "$sb/nm"/config.yaml.bak* >/dev/null 2>&1 && ! grep -q 'MISSING: no-mistakes global config' <<<"$out" && grep -q 'left alone' <<<"$out"; then ok "edited installer default is left alone"; else bad "edited installer default was touched" "$out"; fi
-else
-  skipped "edited installer default" "no real default sample"
-fi
+printf '# ai-native-kit-config\nagent: pi\n' >"$sb/nm/config.yaml"; cp "$sb/nm/config.yaml" "$sb/orig"
+out="$(HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$PATH" "$HERE/setup.sh" --check 2>&1)"
+if cmp -s "$sb/orig" "$sb/nm/config.yaml" && ! grep -q 'left alone' <<<"$out"; then ok "a kit config is untouched and not flagged"; else bad "kit config mishandled" "$out"; fi
 rm -rf "$sb"
 
 printf '%s passed, %s failed, %s skipped\n' "$pass" "$fail" "$skip"

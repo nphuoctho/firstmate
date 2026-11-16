@@ -137,10 +137,8 @@ detect_node() {
 }
 
 detect_python() {
-  local dir=$1 d py req pm how runner prep lint test fmt files depfiles f
+  local dir=$1 d py req pm how runner prep lint test fmt deptext f
   d="$(path_of "$dir")"; py="$d/pyproject.toml"; req="$d/requirements.txt"
-  files=()
-  for f in "$py" "$req" "$d/requirements-dev.txt" "$d/tox.ini" "$d/setup.cfg" "$d/pytest.ini" "$d/ruff.toml" "$d/.ruff.toml"; do [ -e "$f" ] && files+=("$f"); done
   if [ -e "$d/uv.lock" ]; then pm=uv; how="uv.lock"
   elif [ -e "$d/poetry.lock" ] || { [ -e "$py" ] && grep -q '^\[tool\.poetry' "$py"; }; then pm=poetry; how="poetry"
   else pm=pip; how="no lock file"
@@ -160,13 +158,20 @@ detect_python() {
       ;;
   esac
   lint=""; test=""; fmt=""
-  # Ruff counts only when it is listed as a dependency (a requirements line or a pyproject dependency
-  # entry), because `uv run ruff`, `poetry run ruff` and .venv/bin/ruff can only run what the manager
-  # installs. A ruff.toml or a [tool.ruff] table alone is configuration, not a runnable tool.
+  # Ruff and pytest count only when the dependency files that this manager's prepare installs list them:
+  # pyproject.toml without its optional extras (pip adds the dev extra only when prepare installs it),
+  # plus the requirements files for pip. A ruff.toml or a [tool.ruff] table alone is configuration.
   ruff_dep=0; ruff_cfg=0
-  depfiles=()
-  for f in "$py" "$req" "$d"/requirements-dev.txt "$d/setup.cfg"; do [ -e "$f" ] && depfiles+=("$f"); done
-  if [ "${#depfiles[@]}" -gt 0 ] && sed 's/#.*//' "${depfiles[@]}" | grep -qiE "(^|[[:space:],\[\"'])ruff([[:space:]<>=~!;,\"'\[]|\$)"; then ruff_dep=1; fi
+  want_extras=0; case "$prep" in *"'.[dev]'"*) want_extras=1 ;; esac
+  deptext=""
+  if [ -e "$py" ] && { [ "$pm" != pip ] || [ ! -e "$req" ]; }; then
+    deptext="$(awk -v extras="$want_extras" '/^[[:space:]]*\[[A-Za-z]/ { skip = (extras == 0 && $0 ~ /^[[:space:]]*\[project\.optional-dependencies/) } !skip' "$py")"
+  fi
+  if [ "$pm" = pip ]; then
+    for f in "$req" "$d/requirements-dev.txt"; do [ -e "$f" ] && deptext="$deptext"$'\n'"$(cat "$f")"; done
+  fi
+  if [ -e "$d/setup.cfg" ] && [ "$pm" = pip ] && [ ! -e "$req" ]; then deptext="$deptext"$'\n'"$(cat "$d/setup.cfg")"; fi
+  if sed 's/#.*//' <<<"$deptext" | grep -qiE "(^|[[:space:],\[\"'])ruff([[:space:]<>=~!;,\"'\[]|\$)"; then ruff_dep=1; fi
   if [ "$ruff_dep" = 0 ]; then
     if [ -e "$d/ruff.toml" ] || [ -e "$d/.ruff.toml" ] || { [ -e "$py" ] && grep -qs '^\[tool\.ruff' "$py"; }; then
       ruff_cfg=1
@@ -176,7 +181,7 @@ detect_python() {
     lint="$(snip_cmd python lint)"; lint="${lint/#uv run /$runner}"
     fmt="$(snip_cmd python format)"; fmt="${fmt/#uv run /$runner}"
   fi
-  if [ "${#files[@]}" -gt 0 ] && grep -qsi 'pytest' "${files[@]}"; then
+  if sed 's/#.*//' <<<"$deptext" | grep -qi 'pytest'; then
     test="$(snip_cmd python test)"; test="${test/#uv run /$runner}"
   fi
   [ -n "$lint" ] || [ "$ruff_cfg" = 1 ] || note "$(where "$dir"): ruff is not configured, so no lint command is set."
