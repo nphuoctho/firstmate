@@ -137,7 +137,7 @@ detect_node() {
 }
 
 detect_python() {
-  local dir=$1 d py req pm how runner prep lint test fmt files f
+  local dir=$1 d py req pm how runner prep lint test fmt files depfiles f
   d="$(path_of "$dir")"; py="$d/pyproject.toml"; req="$d/requirements.txt"
   files=()
   for f in "$py" "$req" "$d/requirements-dev.txt" "$d/tox.ini" "$d/setup.cfg" "$d/pytest.ini" "$d/ruff.toml" "$d/.ruff.toml"; do [ -e "$f" ] && files+=("$f"); done
@@ -164,7 +164,9 @@ detect_python() {
   # entry), because `uv run ruff`, `poetry run ruff` and .venv/bin/ruff can only run what the manager
   # installs. A ruff.toml or a [tool.ruff] table alone is configuration, not a runnable tool.
   ruff_dep=0
-  if [ "${#files[@]}" -gt 0 ] && grep -qsiE "(^|[[:space:],\[\"'])ruff([[:space:]<>=~!;,\"'\[]|\$)" "${files[@]}"; then ruff_dep=1; fi
+  depfiles=()
+  for f in "$py" "$req" "$d"/requirements-dev.txt "$d/setup.cfg"; do [ -e "$f" ] && depfiles+=("$f"); done
+  if [ "${#depfiles[@]}" -gt 0 ] && sed 's/#.*//' "${depfiles[@]}" | grep -qiE "(^|[[:space:],\[\"'])ruff([[:space:]<>=~!;,\"'\[]|\$)"; then ruff_dep=1; fi
   if [ "$ruff_dep" = 0 ]; then
     if [ -e "$d/ruff.toml" ] || [ -e "$d/.ruff.toml" ] || { [ -e "$py" ] && grep -qs '^\[tool\.ruff' "$py"; }; then
       note "$(where "$dir"): ruff is configured but not listed as a dependency, so 'ruff' would not run; add it to the dev dependencies to get a lint command."

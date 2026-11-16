@@ -46,10 +46,10 @@ for t in git gh node npm jq curl treehouse herdr pi; do
 done
 
 # no-mistakes global config. Installed when absent. Replaced (after a timestamped .bak copy) only when it
-# is the installer's untouched default (nothing but `agent: auto`) or the installer rewrote it in this run.
+# is the installer's untouched default (header `# no-mistakes global configuration` and `agent: auto`) or the installer rewrote it in this run.
 # A config with the kit marker, or any other hand-tuned config, is never touched.
 nm_cfg_sum() { cksum <"$NM_HOME_DIR/config.yaml" 2>/dev/null || true; }
-nm_cfg_is_default() { ! grep -vE '^[[:space:]]*(#.*)?$' "$1" | grep -qvx 'agent: auto'; }
+nm_cfg_is_default() { [ "$(head -n1 "$1")" = '# no-mistakes global configuration' ] && grep -qxF 'agent: auto' "$1"; }
 install_nm_config() {
   local f="$NM_HOME_DIR/config.yaml" fresh="${1:-}"
   if [ ! -s "$f" ]; then

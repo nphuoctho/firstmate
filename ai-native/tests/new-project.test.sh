@@ -69,6 +69,11 @@ check "ruff table without the dependency sets no lint" "$d" 0 'ruff is configure
 out="$("$NP" --dry-run "$d" 2>&1)"
 if grep -q '^  lint: "' <<<"$out"; then bad "ruff table alone set a lint command"; else ok "no lint command from a ruff table alone"; fi
 
+d="$(repo py-rufftoml 'requirements.txt=pytest\n' 'ruff.toml=# Ruff settings\nline-length=100\n')"
+check "ruff.toml with a Ruff comment is not a dependency" "$d" 0 'ruff is configured but not listed as a dependency'
+out="$("$NP" --dry-run "$d" 2>&1)"
+if grep -q '^  lint: "' <<<"$out"; then bad "ruff.toml comment set a lint command"; else ok "no lint command from a ruff.toml comment"; fi
+
 d="$(repo go 'go.mod=module x\n')"
 check "go" "$d" 0 'go vet'
 d="$(repo rust 'Cargo.toml=[package]\nname="a"\n' 'Cargo.lock=\n')"
@@ -100,6 +105,10 @@ sb="$(mktemp -d)"; mkdir -p "$sb/nm" "$sb/fm"
 printf 'agent: claude\nmax_concurrent_runs: 2\n' >"$sb/nm/config.yaml"; cp "$sb/nm/config.yaml" "$sb/orig"
 out="$(HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$PATH" "$HERE/setup.sh" --check 2>&1)"
 if cmp -s "$sb/orig" "$sb/nm/config.yaml" && ! grep -q 'MISSING: no-mistakes global config' <<<"$out" && grep -q 'left alone' <<<"$out"; then ok "--check leaves a tuned config alone"; else bad "--check mishandled a tuned config" "$out"; fi
+cp "$sb/orig" "$sb/nm/config.yaml"
+printf '# no-mistakes global configuration\n\n# Agent to use.\nagent: auto\nci_timeout: 4h\nlog_level: info\n' >"$sb/nm/config.yaml"
+out="$(HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$PATH" "$HERE/setup.sh" --check 2>&1)"
+if grep -q 'MISSING: no-mistakes global config' <<<"$out"; then ok "--check flags the untouched installer default"; else bad "--check missed the installer default" "$out"; fi
 rm -rf "$sb"
 
 printf '%s passed, %s failed, %s skipped\n' "$pass" "$fail" "$skip"
