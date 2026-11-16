@@ -170,8 +170,8 @@ detect_python() {
   if [ "$pm" = pip ]; then
     for f in "$req" "$d/requirements-dev.txt"; do [ -e "$f" ] && deptext="$deptext"$'\n'"$(cat "$f")"; done
   fi
-  if [ -e "$d/setup.cfg" ] && [ "$pm" = pip ] && [ ! -e "$req" ]; then deptext="$deptext"$'\n'"$(cat "$d/setup.cfg")"; fi
-  if sed 's/#.*//' <<<"$deptext" | grep -qiE "(^|[[:space:],\[\"'])ruff([[:space:]<>=~!;,\"'\[]|\$)"; then ruff_dep=1; fi
+  dep_listed() { sed 's/#.*//' <<<"$deptext" | grep -qiE "(^|[[:space:],\[\"'])$1([[:space:]<>=~!;,\"'\[]|\$)"; }
+  if dep_listed ruff; then ruff_dep=1; fi
   if [ "$ruff_dep" = 0 ]; then
     if [ -e "$d/ruff.toml" ] || [ -e "$d/.ruff.toml" ] || { [ -e "$py" ] && grep -qs '^\[tool\.ruff' "$py"; }; then
       ruff_cfg=1
@@ -181,7 +181,7 @@ detect_python() {
     lint="$(snip_cmd python lint)"; lint="${lint/#uv run /$runner}"
     fmt="$(snip_cmd python format)"; fmt="${fmt/#uv run /$runner}"
   fi
-  if sed 's/#.*//' <<<"$deptext" | grep -qi 'pytest'; then
+  if dep_listed pytest; then
     test="$(snip_cmd python test)"; test="${test/#uv run /$runner}"
   fi
   [ -n "$lint" ] || [ "$ruff_cfg" = 1 ] || note "$(where "$dir"): ruff is not configured, so no lint command is set."

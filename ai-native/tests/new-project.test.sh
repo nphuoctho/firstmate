@@ -84,6 +84,10 @@ ycheck "ruff.toml with a Ruff comment sets no lint" "$d" 'd["commands"].get("lin
 else
   skipped "python command fixtures" "python3 yaml module not installed"
 fi
+if [ "$HAVE_YAML" = 1 ]; then
+d="$(repo py-pytest-cfg 'pyproject.toml=[project]\nname="a"\ndependencies=["ruff"]\n[project.optional-dependencies]\ntest = ["pytest"]\n[tool.pytest.ini_options]\naddopts="-q"\n' 'uv.lock=\n')"
+ycheck "pytest config and an extra do not set a test command" "$d" 'd["commands"].get("test")' 'None'
+fi
 d="$(repo py-none 'requirements.txt=flask\n')"
 check "python without ruff or pytest says python was found" "$d" 1 'python found in .*no ruff or pytest'
 d="$(repo py-toolruff2 'pyproject.toml=[project]\nname="a"\ndependencies=["pytest"]\n[tool.ruff]\nline-length=100\n' 'uv.lock=\n')"
@@ -121,9 +125,9 @@ if [ "$rc" != 0 ] && grep -q usage <<<"$out" && ! grep -q 'versions' <<<"$out"; 
 
 # setup.sh must leave a hand-tuned config without the kit marker byte-identical.
 sb="$(mktemp -d)"; mkdir -p "$sb/nm" "$sb/fm"
-printf 'agent: claude\nmax_concurrent_runs: 2\n' >"$sb/nm/config.yaml"; cp "$sb/nm/config.yaml" "$sb/orig"
+printf '# no-mistakes global configuration\n\n# Agent to use for code generation.\nagent: auto\n\nci_timeout: 1h\nlog_level: info\n' >"$sb/nm/config.yaml"; cp "$sb/nm/config.yaml" "$sb/orig"
 out="$(HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$PATH" "$HERE/setup.sh" --check 2>&1)"
-if cmp -s "$sb/orig" "$sb/nm/config.yaml" && ! grep -q 'MISSING: no-mistakes global config' <<<"$out" && grep -q 'left alone' <<<"$out"; then ok "--check leaves a tuned config alone"; else bad "--check mishandled a tuned config" "$out"; fi
+if cmp -s "$sb/orig" "$sb/nm/config.yaml" && ! ls "$sb/nm"/config.yaml.bak* >/dev/null 2>&1 && ! grep -q 'MISSING: no-mistakes global config' <<<"$out" && grep -q 'left alone' <<<"$out"; then ok "--check leaves a tuned config alone"; else bad "--check mishandled a tuned config" "$out"; fi
 printf '# ai-native-kit-config\nagent: pi\n' >"$sb/nm/config.yaml"; cp "$sb/nm/config.yaml" "$sb/orig"
 out="$(HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$PATH" "$HERE/setup.sh" --check 2>&1)"
 if cmp -s "$sb/orig" "$sb/nm/config.yaml" && ! grep -q 'left alone' <<<"$out"; then ok "a kit config is untouched and not flagged"; else bad "kit config mishandled" "$out"; fi
