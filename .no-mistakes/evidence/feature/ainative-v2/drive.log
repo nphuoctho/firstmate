@@ -1,0 +1,324 @@
+=== py
+detected:
+  python (pip, from no lock file) in the repo root
+
+proposed /tmp/tmp.oA9VUT2621/py/.no-mistakes.yaml:
+---
+# Per-repo no-mistakes policy for AI Native projects.
+# Commit it as <repo>/.no-mistakes.yaml on the DEFAULT branch, then run `no-mistakes init`.
+# These fields are read only from the default-branch copy, so a feature-branch edit is ignored:
+# commands, agent, review.*, document/test instructions, ci.*, rebase.*, protected_paths, no_ci,
+# disable_project_settings.
+# Schema: https://github.com/kunchenguid/no-mistakes docs/src/content/docs/reference/repo-config.md
+# The repo file ignores unknown or misspelled keys without a warning, and `no-mistakes doctor` and
+# `status` do not read it. Check key names against the schema.
+
+# `commands` and `ignore_patterns` are filled in by ai-native/new-project.sh in place of the marker
+# line below. Keep the commands: the run worktree has no node_modules or .venv, so without them the
+# lint and test steps depend on an agent that may not be able to run anything, and the run can pass.
+# Commands run through `sh -c` on the daemon host. Keep them non-interactive.
+# ignore_patterns: a pattern with no slash matches that name at any depth. "dir/**" matches a path
+# prefix from the repo root. "*" does not cross "/", and "**/" is not a wildcard, so "**/dist/**"
+# matches nothing. List each nested build folder on its own line, e.g. "apps/web/dist/**".
+# Written by ai-native/new-project.sh (auto). Detected: python (pip, from no lock file) in .;
+# A command left out here is not run by the gate. Check each one below.
+commands:
+  prepare: "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
+  lint: ".venv/bin/ruff check ."
+  test: ".venv/bin/pytest -q"
+  format: ".venv/bin/ruff format ."
+ignore_patterns:
+  - "*.lock"
+  - "*.generated.*"
+  - "*.egg-info/**"
+  - ".venv/**"
+  - "dist/**"
+  - "build/**"
+  - "__pycache__/**"
+
+# Let the reviewer ask the supervising agent a question instead of guessing.
+review:
+  conversation: true
+  # path_instructions:
+  #   - path: "docs/**"
+  #     instructions: |
+  #       Prose changes only. Do not request test coverage.
+
+# Review findings always wait for a decision. A failing lint or test command also waits, so these
+# counts only apply to fixes the agent produced itself.
+auto_fix:
+  review: 0
+  rebase: 3
+rc=0
+=== go
+detected:
+  go in the repo root
+
+proposed /tmp/tmp.oA9VUT2621/go/.no-mistakes.yaml:
+---
+# Per-repo no-mistakes policy for AI Native projects.
+# Commit it as <repo>/.no-mistakes.yaml on the DEFAULT branch, then run `no-mistakes init`.
+# These fields are read only from the default-branch copy, so a feature-branch edit is ignored:
+# commands, agent, review.*, document/test instructions, ci.*, rebase.*, protected_paths, no_ci,
+# disable_project_settings.
+# Schema: https://github.com/kunchenguid/no-mistakes docs/src/content/docs/reference/repo-config.md
+# The repo file ignores unknown or misspelled keys without a warning, and `no-mistakes doctor` and
+# `status` do not read it. Check key names against the schema.
+
+# `commands` and `ignore_patterns` are filled in by ai-native/new-project.sh in place of the marker
+# line below. Keep the commands: the run worktree has no node_modules or .venv, so without them the
+# lint and test steps depend on an agent that may not be able to run anything, and the run can pass.
+# Commands run through `sh -c` on the daemon host. Keep them non-interactive.
+# ignore_patterns: a pattern with no slash matches that name at any depth. "dir/**" matches a path
+# prefix from the repo root. "*" does not cross "/", and "**/" is not a wildcard, so "**/dist/**"
+# matches nothing. List each nested build folder on its own line, e.g. "apps/web/dist/**".
+# Written by ai-native/new-project.sh (auto). Detected: go in .;
+# A command left out here is not run by the gate. Check each one below.
+commands:
+  prepare: "go mod download"
+  lint: "gofmt -l . | (! grep .) && go vet ./..."
+  test: "go test ./..."
+  format: "gofmt -w ."
+ignore_patterns:
+  - "go.sum"
+  - "*.pb.go"
+  - "*.generated.*"
+  - "vendor/**"
+  - "bin/**"
+
+# Let the reviewer ask the supervising agent a question instead of guessing.
+review:
+  conversation: true
+  # path_instructions:
+  #   - path: "docs/**"
+  #     instructions: |
+  #       Prose changes only. Do not request test coverage.
+
+# Review findings always wait for a decision. A failing lint or test command also waits, so these
+# counts only apply to fixes the agent produced itself.
+auto_fix:
+  review: 0
+  rebase: 3
+  lint: 3
+  test: 3
+rc=0
+=== rs
+detected:
+  rust in the repo root
+
+proposed /tmp/tmp.oA9VUT2621/rs/.no-mistakes.yaml:
+---
+# Per-repo no-mistakes policy for AI Native projects.
+# Commit it as <repo>/.no-mistakes.yaml on the DEFAULT branch, then run `no-mistakes init`.
+# These fields are read only from the default-branch copy, so a feature-branch edit is ignored:
+# commands, agent, review.*, document/test instructions, ci.*, rebase.*, protected_paths, no_ci,
+# disable_project_settings.
+# Schema: https://github.com/kunchenguid/no-mistakes docs/src/content/docs/reference/repo-config.md
+# The repo file ignores unknown or misspelled keys without a warning, and `no-mistakes doctor` and
+# `status` do not read it. Check key names against the schema.
+
+# `commands` and `ignore_patterns` are filled in by ai-native/new-project.sh in place of the marker
+# line below. Keep the commands: the run worktree has no node_modules or .venv, so without them the
+# lint and test steps depend on an agent that may not be able to run anything, and the run can pass.
+# Commands run through `sh -c` on the daemon host. Keep them non-interactive.
+# ignore_patterns: a pattern with no slash matches that name at any depth. "dir/**" matches a path
+# prefix from the repo root. "*" does not cross "/", and "**/" is not a wildcard, so "**/dist/**"
+# matches nothing. List each nested build folder on its own line, e.g. "apps/web/dist/**".
+# Written by ai-native/new-project.sh (auto). Detected: rust in .;
+# A command left out here is not run by the gate. Check each one below.
+commands:
+  prepare: "cargo fetch"
+  lint: "cargo fmt --check && cargo clippy --all-targets -- -D warnings"
+  test: "cargo test"
+  format: "cargo fmt"
+ignore_patterns:
+  - "Cargo.lock"
+  - "*.lock"
+  - "*.generated.*"
+  - "target/**"
+  - "vendor/**"
+
+# Let the reviewer ask the supervising agent a question instead of guessing.
+review:
+  conversation: true
+  # path_instructions:
+  #   - path: "docs/**"
+  #     instructions: |
+  #       Prose changes only. Do not request test coverage.
+
+# Review findings always wait for a decision. A failing lint or test command also waits, so these
+# counts only apply to fixes the agent produced itself.
+auto_fix:
+  review: 0
+  rebase: 3
+  lint: 3
+  test: 3
+rc=0
+=== cpp
+detected:
+  cpp (make) in the repo root
+
+proposed /tmp/tmp.oA9VUT2621/cpp/.no-mistakes.yaml:
+---
+# Per-repo no-mistakes policy for AI Native projects.
+# Commit it as <repo>/.no-mistakes.yaml on the DEFAULT branch, then run `no-mistakes init`.
+# These fields are read only from the default-branch copy, so a feature-branch edit is ignored:
+# commands, agent, review.*, document/test instructions, ci.*, rebase.*, protected_paths, no_ci,
+# disable_project_settings.
+# Schema: https://github.com/kunchenguid/no-mistakes docs/src/content/docs/reference/repo-config.md
+# The repo file ignores unknown or misspelled keys without a warning, and `no-mistakes doctor` and
+# `status` do not read it. Check key names against the schema.
+
+# `commands` and `ignore_patterns` are filled in by ai-native/new-project.sh in place of the marker
+# line below. Keep the commands: the run worktree has no node_modules or .venv, so without them the
+# lint and test steps depend on an agent that may not be able to run anything, and the run can pass.
+# Commands run through `sh -c` on the daemon host. Keep them non-interactive.
+# ignore_patterns: a pattern with no slash matches that name at any depth. "dir/**" matches a path
+# prefix from the repo root. "*" does not cross "/", and "**/" is not a wildcard, so "**/dist/**"
+# matches nothing. List each nested build folder on its own line, e.g. "apps/web/dist/**".
+# Written by ai-native/new-project.sh (auto). Detected: cpp (make) in .;
+# A command left out here is not run by the gate. Check each one below.
+commands:
+  lint: "git ls-files '*.c' '*.cc' '*.cpp' '*.h' '*.hpp' | xargs -r clang-format --dry-run --Werror"
+  format: "git ls-files '*.c' '*.cc' '*.cpp' '*.h' '*.hpp' | xargs -r clang-format -i"
+ignore_patterns:
+  - "*.o"
+  - "*.a"
+  - "*.so"
+  - "*.generated.*"
+  - "build/**"
+  - "third_party/**"
+  - "vendor/**"
+
+# Let the reviewer ask the supervising agent a question instead of guessing.
+review:
+  conversation: true
+  # path_instructions:
+  #   - path: "docs/**"
+  #     instructions: |
+  #       Prose changes only. Do not request test coverage.
+
+# Review findings always wait for a decision. A failing lint or test command also waits, so these
+# counts only apply to fixes the agent produced itself.
+auto_fix:
+  review: 0
+  rebase: 3
+  lint: 3
+  test: 3
+rc=0
+=== js
+detected:
+  node (pnpm, from packageManager field) in the repo root
+
+proposed /tmp/tmp.oA9VUT2621/js/.no-mistakes.yaml:
+---
+# Per-repo no-mistakes policy for AI Native projects.
+# Commit it as <repo>/.no-mistakes.yaml on the DEFAULT branch, then run `no-mistakes init`.
+# These fields are read only from the default-branch copy, so a feature-branch edit is ignored:
+# commands, agent, review.*, document/test instructions, ci.*, rebase.*, protected_paths, no_ci,
+# disable_project_settings.
+# Schema: https://github.com/kunchenguid/no-mistakes docs/src/content/docs/reference/repo-config.md
+# The repo file ignores unknown or misspelled keys without a warning, and `no-mistakes doctor` and
+# `status` do not read it. Check key names against the schema.
+
+# `commands` and `ignore_patterns` are filled in by ai-native/new-project.sh in place of the marker
+# line below. Keep the commands: the run worktree has no node_modules or .venv, so without them the
+# lint and test steps depend on an agent that may not be able to run anything, and the run can pass.
+# Commands run through `sh -c` on the daemon host. Keep them non-interactive.
+# ignore_patterns: a pattern with no slash matches that name at any depth. "dir/**" matches a path
+# prefix from the repo root. "*" does not cross "/", and "**/" is not a wildcard, so "**/dist/**"
+# matches nothing. List each nested build folder on its own line, e.g. "apps/web/dist/**".
+# Written by ai-native/new-project.sh (auto). Detected: node (pnpm, from packageManager field) in .;
+# A command left out here is not run by the gate. Check each one below.
+commands:
+  prepare: "pnpm install"
+  lint: "pnpm run lint"
+  test: "pnpm run test"
+ignore_patterns:
+  - "*.lock"
+  - "package-lock.json"
+  - "pnpm-lock.yaml"
+  - "npm-shrinkwrap.json"
+  - "*.min.js"
+  - "*.min.css"
+  - "*.map"
+  - "*.generated.*"
+  - "dist/**"
+  - "build/**"
+  - ".next/**"
+  - "coverage/**"
+  - "node_modules/**"
+
+# Let the reviewer ask the supervising agent a question instead of guessing.
+review:
+  conversation: true
+  # path_instructions:
+  #   - path: "docs/**"
+  #     instructions: |
+  #       Prose changes only. Do not request test coverage.
+
+rc=0
+=== mk
+detected:
+  node (npm, from no lockfile) in the repo root
+
+proposed /tmp/tmp.oA9VUT2621/mk/.no-mistakes.yaml:
+---
+# Per-repo no-mistakes policy for AI Native projects.
+# Commit it as <repo>/.no-mistakes.yaml on the DEFAULT branch, then run `no-mistakes init`.
+# These fields are read only from the default-branch copy, so a feature-branch edit is ignored:
+# commands, agent, review.*, document/test instructions, ci.*, rebase.*, protected_paths, no_ci,
+# disable_project_settings.
+# Schema: https://github.com/kunchenguid/no-mistakes docs/src/content/docs/reference/repo-config.md
+# The repo file ignores unknown or misspelled keys without a warning, and `no-mistakes doctor` and
+# `status` do not read it. Check key names against the schema.
+
+# `commands` and `ignore_patterns` are filled in by ai-native/new-project.sh in place of the marker
+# line below. Keep the commands: the run worktree has no node_modules or .venv, so without them the
+# lint and test steps depend on an agent that may not be able to run anything, and the run can pass.
+# Commands run through `sh -c` on the daemon host. Keep them non-interactive.
+# ignore_patterns: a pattern with no slash matches that name at any depth. "dir/**" matches a path
+# prefix from the repo root. "*" does not cross "/", and "**/" is not a wildcard, so "**/dist/**"
+# matches nothing. List each nested build folder on its own line, e.g. "apps/web/dist/**".
+# Written by ai-native/new-project.sh (auto). Detected: node (npm, from no lockfile) in .;
+# A command left out here is not run by the gate. Check each one below.
+commands:
+  prepare: "npm install"
+ignore_patterns:
+  - "*.lock"
+  - "package-lock.json"
+  - "pnpm-lock.yaml"
+  - "npm-shrinkwrap.json"
+  - "*.min.js"
+  - "*.min.css"
+  - "*.map"
+  - "*.generated.*"
+  - "dist/**"
+  - "build/**"
+  - ".next/**"
+  - "coverage/**"
+  - "node_modules/**"
+
+# Let the reviewer ask the supervising agent a question instead of guessing.
+review:
+  conversation: true
+  # path_instructions:
+  #   - path: "docs/**"
+  #     instructions: |
+  #       Prose changes only. Do not request test coverage.
+
+# Review findings always wait for a decision. A failing lint or test command also waits, so these
+# counts only apply to fixes the agent produced itself.
+rc=0
+=== empty
+new-project.sh: found no known stack in /tmp/tmp.oA9VUT2621/empty (markers: package.json, pyproject.toml, requirements.txt, go.mod, Cargo.toml, Makefile with C/C++ files). Name one: cpp go node python rust 
+rc=0
+=== badnamed
+new-project.sh: invalid folder '../x'
+=== shopify
+new-project.sh: unknown stack 'shopify' (stacks: cpp go node python rust )
+=== write
+  go in the repo root
+wrote /tmp/tmp.oA9VUT2621/go/.no-mistakes.yaml. Commit it on the default branch, then run: no-mistakes init
+go.mod
+new-project.sh: /tmp/tmp.oA9VUT2621/go/.no-mistakes.yaml already exists; not overwriting
