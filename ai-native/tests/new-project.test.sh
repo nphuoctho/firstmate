@@ -66,6 +66,7 @@ d="$(repo py-none 'requirements.txt=flask\n')"
 check "python without ruff or pytest says python was found" "$d" 1 'python found in .*no ruff or pytest'
 d="$(repo py-toolruff 'pyproject.toml=[project]\nname="a"\ndependencies=["pytest"]\n[tool.ruff]\nline-length=100\n' 'uv.lock=\n')"
 check "ruff table without the dependency sets no lint" "$d" 0 'ruff is configured but not listed as a dependency'
+if "$NP" --dry-run "$d" 2>&1 | grep -q 'ruff is not configured'; then bad "contradictory ruff notes"; else ok "ruff notes do not contradict"; fi
 out="$("$NP" --dry-run "$d" 2>&1)"
 if grep -q '^  lint: "' <<<"$out"; then bad "ruff table alone set a lint command"; else ok "no lint command from a ruff table alone"; fi
 
@@ -105,10 +106,14 @@ sb="$(mktemp -d)"; mkdir -p "$sb/nm" "$sb/fm"
 printf 'agent: claude\nmax_concurrent_runs: 2\n' >"$sb/nm/config.yaml"; cp "$sb/nm/config.yaml" "$sb/orig"
 out="$(HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$PATH" "$HERE/setup.sh" --check 2>&1)"
 if cmp -s "$sb/orig" "$sb/nm/config.yaml" && ! grep -q 'MISSING: no-mistakes global config' <<<"$out" && grep -q 'left alone' <<<"$out"; then ok "--check leaves a tuned config alone"; else bad "--check mishandled a tuned config" "$out"; fi
-cp "$sb/orig" "$sb/nm/config.yaml"
-printf '# no-mistakes global configuration\n\n# Agent to use.\nagent: auto\nci_timeout: 4h\nlog_level: info\n' >"$sb/nm/config.yaml"
-out="$(HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$PATH" "$HERE/setup.sh" --check 2>&1)"
-if grep -q 'MISSING: no-mistakes global config' <<<"$out"; then ok "--check flags the untouched installer default"; else bad "--check missed the installer default" "$out"; fi
+REAL_DEFAULT="$HOME/.no-mistakes/config.yaml.bak-20261027"
+if [ -r "$REAL_DEFAULT" ]; then
+  { cat "$REAL_DEFAULT"; printf 'ci_timeout: 1h\n'; } >"$sb/nm/config.yaml"; cp "$sb/nm/config.yaml" "$sb/orig"
+  out="$(HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$PATH" "$HERE/setup.sh" --check 2>&1)"
+  if cmp -s "$sb/orig" "$sb/nm/config.yaml" && ! ls "$sb/nm"/config.yaml.bak* >/dev/null 2>&1 && ! grep -q 'MISSING: no-mistakes global config' <<<"$out" && grep -q 'left alone' <<<"$out"; then ok "edited installer default is left alone"; else bad "edited installer default was touched" "$out"; fi
+else
+  skipped "edited installer default" "no real default sample"
+fi
 rm -rf "$sb"
 
 printf '%s passed, %s failed, %s skipped\n' "$pass" "$fail" "$skip"

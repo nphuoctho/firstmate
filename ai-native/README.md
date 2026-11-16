@@ -23,7 +23,7 @@ Install these first. The script reports any that are missing:
 - `herdr` (https://herdr.dev), `pi` (https://pi.dev) and `treehouse` (Firstmate needs it for the Herdr backend).
 
 It then installs what is missing:
-- `no-mistakes` and its machine-wide config (`no-mistakes/global-config.yaml`). The installer's untouched default config (it starts with `# no-mistakes global configuration` and keeps `agent: auto`), or one the installer writes during the same run, is replaced after saving a `config.yaml.bak.<time>` copy. A config with the line `# ai-native-kit-config`, or any other config you edited, is never touched; setup says so and you can copy `no-mistakes/global-config.yaml` over it by hand;
+- `no-mistakes` and its machine-wide config (`no-mistakes/global-config.yaml`). A config the no-mistakes installer writes during the same run is replaced after saving a `config.yaml.bak.<time>` copy. Any config that already exists is never touched, with or without the line `# ai-native-kit-config`; setup prints the command to adopt `no-mistakes/global-config.yaml` by hand;
 - the Firstmate command-line tools `gh-axi`, `chrome-devtools-axi`, `lavish-axi`, `quota-axi` and `tasks-axi`, with `setup hooks` run for the first three;
 - two shared Pi packages, `pi-web-access` and `cc-safety-net` (the Pi package check is skipped, with a message, when `pi` is missing);
 - `config/backend=herdr`, `config/crew-harness=pi` and `config/crew-dispatch.json` (copied from `presets/`), each only when missing.

@@ -163,12 +163,13 @@ detect_python() {
   # Ruff counts only when it is listed as a dependency (a requirements line or a pyproject dependency
   # entry), because `uv run ruff`, `poetry run ruff` and .venv/bin/ruff can only run what the manager
   # installs. A ruff.toml or a [tool.ruff] table alone is configuration, not a runnable tool.
-  ruff_dep=0
+  ruff_dep=0; ruff_cfg=0
   depfiles=()
   for f in "$py" "$req" "$d"/requirements-dev.txt "$d/setup.cfg"; do [ -e "$f" ] && depfiles+=("$f"); done
   if [ "${#depfiles[@]}" -gt 0 ] && sed 's/#.*//' "${depfiles[@]}" | grep -qiE "(^|[[:space:],\[\"'])ruff([[:space:]<>=~!;,\"'\[]|\$)"; then ruff_dep=1; fi
   if [ "$ruff_dep" = 0 ]; then
     if [ -e "$d/ruff.toml" ] || [ -e "$d/.ruff.toml" ] || { [ -e "$py" ] && grep -qs '^\[tool\.ruff' "$py"; }; then
+      ruff_cfg=1
       note "$(where "$dir"): ruff is configured but not listed as a dependency, so 'ruff' would not run; add it to the dev dependencies to get a lint command."
     fi
   else
@@ -178,7 +179,7 @@ detect_python() {
   if [ "${#files[@]}" -gt 0 ] && grep -qsi 'pytest' "${files[@]}"; then
     test="$(snip_cmd python test)"; test="${test/#uv run /$runner}"
   fi
-  [ -n "$lint" ] || note "$(where "$dir"): ruff is not configured, so no lint command is set."
+  [ -n "$lint" ] || [ "$ruff_cfg" = 1 ] || note "$(where "$dir"): ruff is not configured, so no lint command is set."
   [ -n "$test" ] || note "$(where "$dir"): pytest is not configured, so no test command is set."
   if [ -z "$lint$test" ]; then
     PY_EMPTY="${PY_EMPTY:+$PY_EMPTY, }$(where "$dir")"

@@ -45,11 +45,9 @@ for t in git gh node npm jq curl treehouse herdr pi; do
   command -v "$t" >/dev/null 2>&1 || miss "$t ($(hint "$t"))"
 done
 
-# no-mistakes global config. Installed when absent. Replaced (after a timestamped .bak copy) only when it
-# is the installer's untouched default (header `# no-mistakes global configuration` and `agent: auto`) or the installer rewrote it in this run.
-# A config with the kit marker, or any other hand-tuned config, is never touched.
+# no-mistakes global config. Installed when absent. Replaced (after a timestamped .bak copy) only when the
+# installer wrote it in this run. Any other existing config, with or without the kit marker, is never touched.
 nm_cfg_sum() { cksum <"$NM_HOME_DIR/config.yaml" 2>/dev/null || true; }
-nm_cfg_is_default() { [ "$(head -n1 "$1")" = '# no-mistakes global configuration' ] && grep -qxF 'agent: auto' "$1"; }
 install_nm_config() {
   local f="$NM_HOME_DIR/config.yaml" fresh="${1:-}"
   if [ ! -s "$f" ]; then
@@ -57,16 +55,13 @@ install_nm_config() {
       mkdir -p "$NM_HOME_DIR"
       cp "$ROOT/ai-native/no-mistakes/global-config.yaml" "$f"
     fi
+  elif [ -n "$fresh" ]; then
+    cp "$f" "$f.bak.$(date +%Y%m%d%H%M%S)"
+    cp "$ROOT/ai-native/no-mistakes/global-config.yaml" "$f"
+    say "replaced the installer's default config; old copy saved as config.yaml.bak.<time>."
+    say "note: restart the no-mistakes daemon to apply it (no-mistakes daemon restart) when no runs are active."
   elif ! grep -qxF "$KIT_MARKER" "$f"; then
-    if [ -n "$fresh" ] || nm_cfg_is_default "$f"; then
-      if act "no-mistakes global config (replacing the installer default, old copy saved as config.yaml.bak.<time>)"; then
-        cp "$f" "$f.bak.$(date +%Y%m%d%H%M%S)"
-        cp "$ROOT/ai-native/no-mistakes/global-config.yaml" "$f"
-        say "note: restart the no-mistakes daemon to apply it (no-mistakes daemon restart) when no runs are active."
-      fi
-    else
-      say "note: $f is not the kit config and is left alone; to adopt the kit config, copy ai-native/no-mistakes/global-config.yaml over it."
-    fi
+    say "note: $f is not the kit config and is left alone. To adopt the kit config: cp '$f' '$f.bak' && cp '$ROOT/ai-native/no-mistakes/global-config.yaml' '$f'"
   fi
 }
 
