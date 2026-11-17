@@ -7,7 +7,7 @@ A starting kit for AI Native projects. One script sets up a machine. Another wri
 - **Herdr** is the terminal multiplexer where the primary session and the workers each get a pane.
 - **no-mistakes** checks a change (review, lint, tests) before it is pushed and opens the pull request.
 
-The primary session is the Pi session you talk to. Workers are the other Pi sessions Firstmate starts.
+The primary session is the Pi session you talk to. Workers are the other sessions Firstmate starts, on Pi or, if you choose, Oh My Pi.
 
 ## Set up a machine
 
