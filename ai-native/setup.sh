@@ -18,12 +18,12 @@ esac
 [ "$#" -le 1 ] || { usage >&2; exit 2; }
 
 NPM_CLIS=(gh-axi chrome-devtools-axi lavish-axi quota-axi tasks-axi)
-# User-level packages load in every Pi process, workers included, so only the cheap ones live here.
-# PRIMARY_ONLY packages cost per-request tokens or memory in every worker (todo ~1.7k tokens, mcp ~1.1k,
-# preview_export ~0.8k, pi-lens 0.6-1.2 GB) or break composer reads (pi-open-tui): ai-native/pi-primary.sh
-# loads them with -e for the primary session, and setup.sh removes any user-level copy.
+# User-level packages load in every Pi process (primary, workers, no-mistakes gate agents), so only the cheap ones live here.
+# NOT_USER_LEVEL packages cost per-request tokens or memory in every one of those processes (todo ~1.7k tokens,
+# mcp ~1.1k, preview_export ~0.8k, pi-lens 0.6-1.2 GB) or break composer reads (pi-open-tui).
+# setup.sh removes any user-level copy.
 PI_PACKAGES=(pi-web-access cc-safety-net)
-PRIMARY_ONLY=(pi-open-tui pi-lens @juicesharp/rpiv-todo pi-mcp-adapter pi-markdown-preview)
+NOT_USER_LEVEL=(pi-open-tui pi-lens @juicesharp/rpiv-todo pi-mcp-adapter pi-markdown-preview)
 NM_HOME_DIR="${NM_HOME:-$HOME/.no-mistakes}"
 # First line of the kit's global config. A config carrying it is the kit's and is never touched.
 KIT_MARKER='# ai-native-kit-config'
@@ -96,13 +96,27 @@ if command -v pi >/dev/null 2>&1; then
   for p in "${PI_PACKAGES[@]}"; do
     grep -q "npm:$p\$" <<<"$installed" || { if act "pi package $p"; then pi install "npm:$p"; fi; }
   done
-  for p in "${PRIMARY_ONLY[@]}"; do
+  for p in "${NOT_USER_LEVEL[@]}"; do
     if grep -q "npm:$p\$" <<<"$installed"; then
-      if act "remove user-level $p (primary-only)"; then pi remove "npm:$p"; fi
+      if act "remove user-level $p (not for every session)"; then pi remove "npm:$p"; fi
     fi
   done
 else
   say "skipped: Pi package check (pi is not installed, so the packages cannot be listed)"
+fi
+
+# Herdr learns each agent's working, blocked and done state from its integration for that agent.
+# The install needs the agent's extension folder, which only exists after the agent first ran.
+if command -v herdr >/dev/null 2>&1; then
+  hstatus="$(herdr integration status 2>/dev/null || true)"
+  for a in pi omp; do
+    command -v "$a" >/dev/null 2>&1 || continue
+    grep -q "^$a: current" <<<"$hstatus" && continue
+    if act "herdr integration for $a"; then
+      mkdir -p "$HOME/.$a/agent/extensions"
+      herdr integration install "$a" || say "warning: herdr integration install $a failed"
+    fi
+  done
 fi
 
 # Firstmate local (gitignored) config: Pi workers on the Herdr backend, plus the dispatch preset.
@@ -113,7 +127,12 @@ for kv in "backend:herdr" "crew-harness:pi"; do
   f="$CFG/${kv%%:*}"
   [ -s "$f" ] || { if act "config/${kv%%:*}=${kv##*:}"; then printf '%s\n' "${kv##*:}" >"$f"; fi; }
 done
-[ -s "$CFG/crew-dispatch.json" ] || { if act "config/crew-dispatch.json (preset)"; then cp "$ROOT/ai-native/presets/crew-dispatch.json" "$CFG/crew-dispatch.json"; fi; }
+PRESET="$ROOT/ai-native/presets/crew-dispatch.json"
+if [ ! -s "$CFG/crew-dispatch.json" ]; then
+  if act "config/crew-dispatch.json (preset)"; then cp "$PRESET" "$CFG/crew-dispatch.json"; fi
+elif ! cmp -s "$CFG/crew-dispatch.json" "$PRESET"; then
+  say "note: config/crew-dispatch.json differs from the preset and is left alone. Compare: diff '$CFG/crew-dispatch.json' '$PRESET'"
+fi
 
 say "--- versions"
 for t in pi herdr no-mistakes tasks-axi gh-axi quota-axi lavish-axi chrome-devtools-axi; do

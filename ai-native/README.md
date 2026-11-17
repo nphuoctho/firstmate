@@ -12,7 +12,7 @@ The primary session is the Pi session you talk to. Workers are the other Pi sess
 ## Set up a machine
 
 ```sh
-ai-native/setup.sh --check   # report what is missing, change nothing; exits 1 if anything is missing
+ai-native/setup.sh --check   # report what is missing, install nothing; exits 1 if anything is missing
 ai-native/setup.sh           # install what is missing
 ```
 
@@ -26,13 +26,38 @@ It then installs what is missing:
 - `no-mistakes` and its machine-wide config (`no-mistakes/global-config.yaml`). A config the no-mistakes installer writes during the same run is replaced after saving a `config.yaml.bak.<time>` copy. Any config that already exists is never touched, with or without the line `# ai-native-kit-config`; setup prints the command to adopt `no-mistakes/global-config.yaml` by hand;
 - the Firstmate command-line tools `gh-axi`, `chrome-devtools-axi`, `lavish-axi`, `quota-axi` and `tasks-axi`, with `setup hooks` run for the first three;
 - two shared Pi packages, `pi-web-access` and `cc-safety-net` (the Pi package check is skipped, with a message, when `pi` is missing);
+- the Herdr integration for `pi`, and for `omp` when it is installed, so Herdr shows whether each agent is working, blocked or done;
 - `config/backend=herdr`, `config/crew-harness=pi` and `config/crew-dispatch.json` (copied from `presets/`), each only when missing.
 
-`--check` is the only fully safe dry look.
+An existing `config/crew-dispatch.json` that differs from the preset is left alone, and setup prints the `diff` command to compare them.
+
+`--check` installs nothing and changes no settings, so it is the only fully safe dry look.
+It can still create cache files: `pi list` creates `~/.pi/agent/` and `no-mistakes doctor` writes an update check under `NM_HOME`.
 A real run in a sandbox needs all of `HOME`, `NPM_CONFIG_PREFIX`, `FM_HOME` and `NM_HOME` set to scratch folders, and a limited `PATH`.
 `FM_HOME` and `NM_HOME` alone are not enough: `npm install -g`, `pi install` and the no-mistakes installer write under the real npm prefix, `~/.pi` and `~/.no-mistakes/bin`.
 
-`ai-native/pi-primary.sh` starts the primary session with the primary-only packages. It needs network on first launch, to download them.
+## Start the primary session
+
+Open Herdr, go to this repo's folder and run `pi`.
+Approve Pi's project trust prompt once, so Firstmate's extensions in `.pi/extensions/` load.
+
+- Give the primary session your strongest model at `high` or `xhigh` effort with `/model`, because it keeps track of every project and worker.
+- Run `/supervision-model` to put Firstmate's background supervision on a cheaper model and effort, for example Haiku 5.5 at `medium`, while your own conversation keeps its model.
+- Run `/calm` to hide tool calls, so you see only your messages and the replies.
+
+When you add a project, Firstmate asks how its changes are delivered.
+Use a direct pull request while the project is a prototype.
+Switch to no-mistakes once its changes are ones you would otherwise want a person to review.
+
+## Run workers on Oh My Pi
+
+Workers can use Oh My Pi (`omp`) instead of Pi.
+Put `omp` in `config/crew-harness` and change `"harness": "pi"` to `"harness": "omp"` in every profile of `config/crew-dispatch.json`.
+Firstmate starts each omp worker with `.omp/fm-worker-overlay.yml`, so it does not stop on prompts, and your own `~/.omp/agent/config.yml` is not changed.
+
+- `config/crew-exclude-tools` does not work with omp: a list with any entry stops the worker from starting.
+- omp workers load the MCP servers in your `~/.omp/agent/mcp.json` and can start omp's own sub-agents, up to your `task.maxConcurrency`.
+- Keep the primary session on Pi, because omp has no `/calm` or `/supervision-model`.
 
 ## Add a project
 
@@ -104,22 +129,39 @@ The template sets the commit message form for the fix commits no-mistakes makes.
 
 ## Pi packages
 
-| Package | Runs in | Use |
-| --- | --- | --- |
-| pi-web-access | every session | web search and page fetch |
-| cc-safety-net | every session | blocks destructive commands |
-| pi-open-tui | primary | full-screen UI, set with `/open-tui` |
-| pi-mcp-adapter | primary | MCP gateway; turns off Pi's built-in MCP |
-| pi-markdown-preview | primary | export Markdown to PDF, HTML, PNG |
-| @juicesharp/rpiv-todo | primary | to-do list |
-| pi-lens | primary, optional | diagnostics, code navigation, ast-grep |
+Packages installed for your user load in every Pi session: the primary, every worker and every no-mistakes agent.
+The kit installs only two:
 
-The first two are installed for your user and load in worker sessions too.
-The rest load only in the primary session through `ai-native/pi-primary.sh` (`LENS=1` adds pi-lens), and `setup.sh` removes any user-level copy.
-- pi-open-tui replaces Pi's input box, so Firstmate cannot read it, and a steer notice can land in the middle of what you are typing.
-- pi-lens uses about 0.6 to 1.2 GB of memory per worker.
-- `todo`, `mcp` and `preview_export` cost tokens on every request (see the table at the end).
-- pi-lens can attach a wrong schema (for example AWS) to the no-mistakes YAML and report false errors. Trust `no-mistakes doctor`.
+| Package | Use |
+| --- | --- |
+| pi-web-access | web search and page fetch |
+| cc-safety-net | blocks destructive commands and reads of secret files |
+
+`setup.sh` removes a user-level copy of these packages, because Firstmate already covers what they do or they cost too much in every session:
+
+| Package | Why not |
+| --- | --- |
+| pi-mcp-adapter | Pi already has MCP built in (`pi mcp add`), and it loads server tools only when needed |
+| pi-open-tui | replaces Pi's input box, so Firstmate cannot read it, and a message from Firstmate can land in the middle of what you are typing; use `/calm` instead |
+| @juicesharp/rpiv-todo | Firstmate keeps its own backlog; the tool costs about 1.7k tokens per request |
+| pi-lens | gives the agent live code feedback (language servers, linters, formatters, type checks, ast-grep), but uses about 0.6 to 1.2 GB of memory per session, and it can attach a wrong schema (for example AWS) to the no-mistakes YAML; no-mistakes already runs each repo's own lint and tests |
+| pi-markdown-preview | about 0.8k tokens per request in every session |
+
+If you want Markdown previews in the primary session only, install a pinned version for this folder: `pi install -l npm:pi-markdown-preview@0.27.0`.
+That writes `.pi/settings.json` here, which workers never read because they run in their own copies of each repo.
+Add `.pi/settings.json` and `.pi/npm/` to `.git/info/exclude` so they are never committed.
+
+### Sub-agents (optional)
+
+`pi-subagents` lets a Pi session hand parts of its task to sub-agents, like Claude Code's Agent tool or omp's built-in task tool.
+The kit does not install it, and `setup.sh` leaves it alone if you do.
+
+- Inside a worker it is fine: the sub-agents work in that worker's own copy of the repo, and Firstmate tracks the worker.
+- The primary session must never use a sub-agent tool to do project work.
+  That work has no durable record and no isolated copy of the repo, so Firstmate cannot see it and it is lost when the session restarts (see `docs/subagent-guard.md`).
+- Claude Code primaries have a tool-level guard for this, but Pi and omp primaries do not yet, so the rule depends on the agent following it.
+- Every sub-agent spends its own tokens, so a worker that fans out uses more quota.
+- Installed for your user, it loads in every Pi session, including the no-mistakes agents.
 
 cc-safety-net blocks destructive git commands a worker types, not Firstmate's own scripts.
 In one sample it refused about 3.4 percent of real worker commands, mostly `git reset --hard`.
@@ -131,21 +173,25 @@ Loosening it (`workflow.worktree_mode`) is your call, made in your own terminal.
 
 | Work | Model |
 | --- | --- |
-| Mechanical upkeep (rebase, version bump, rename) | Haiku 5.5, medium |
+| Mechanical edits (conflict resolution, version bump, typo, rename) | Sonnet 5.5, medium |
+| Driving an existing pull request through no-mistakes, or other bookkeeping with no code | Haiku 5.5, medium |
+| A clear bug fix in a few files that does not touch login, sessions, tokens, permissions or payments | Sonnet 5.5, medium |
+| Multi-file or risky work, or any change to login, sessions, tokens, permissions, payments, data migrations or locking | Sonnet 5.5, high |
+| Planning large or risky work, or a code review you asked for | Opus 5.5, xhigh |
+| Scouts (read-only investigations), experiments, audits | Sonnet 5.5, high |
 | Everything else (default) | Sonnet 5.5, medium |
-| Scouts (read-only investigations), scans, audits | Sonnet 5.5, high |
-| Planning large or risky work, read-only code review | Opus 5.5, xhigh |
 
 ## Working rules
 
-- The primary session runs in Herdr. Workers open as Herdr panes and use Pi.
+- The primary session runs in Herdr. Workers open as Herdr panes and use Pi, or omp when you chose it.
 - Herdr tests run only through `bin/fm-herdr-lab.sh` in an `fm-lab-*` session, never against your real Herdr session.
 - Machine-specific settings live in `config/`, `data/` and `state/`. They are gitignored and never committed.
 
 ## Verification
 
 - `ai-native/tests/new-project.test.sh` builds throwaway repos (node, python, go, rust, make C++, a monorepo, an empty repo) and checks detection and `--dry-run`. It also runs `setup.sh` in a sandbox HOME to check that an existing config is left alone.
-- `setup.sh --check` on an empty sandbox lists what is missing and writes nothing. A second full run changes nothing, and a config with the kit marker or a hand-tuned config survives byte for byte.
+  With stand-in `pi`, `herdr` and installers it checks the Herdr integration step, the removal of a user-level `pi-mcp-adapter`, and the note for a changed `config/crew-dispatch.json`.
+- `setup.sh --check` on an empty sandbox lists what is missing and installs nothing. A second full run changes nothing, and a config with the kit marker or a hand-tuned config survives byte for byte.
 - Generated files load through the strict no-mistakes v1.106.1 config loader, not just `doctor`, which never reads them.
 - `new-project.sh --verify` passes on clean fixtures (Go, Rust, C++, Node, Python with uv and with pip) and fails on a deliberate lint defect. yarn and bun commands are generated but were never run.
 - `bin/fm-lint.sh ai-native/*.sh` and `bin/fm-doc-audience-check.sh` pass.
@@ -163,5 +209,5 @@ Each user-level Pi package adds tool schemas to every request of every worker, i
 | `cc-safety-net` | none | 0 |
 
 Firstmate's `--exclude-tools` only hides tools from the worker sessions it starts. It does not apply to no-mistakes agents, so it does not help while a package is installed for your user.
-So the kit loads the first three only in the primary session.
+So the kit installs none of the first three for your user.
 Most of the remaining cost (about 12k tokens) is the skill list in `~/.agents/skills`; trimming it is up to you.

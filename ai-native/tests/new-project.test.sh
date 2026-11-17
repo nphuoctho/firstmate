@@ -143,5 +143,42 @@ out="$(HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$PATH" "$HERE/setup.sh
 if cmp -s "$sb/orig" "$sb/nm/config.yaml" && ! grep -q 'left alone' <<<"$out"; then ok "a kit config is untouched and not flagged"; else bad "kit config mishandled" "$out"; fi
 rm -rf "$sb"
 
+# Stubbed pi, herdr and installers, so setup.sh can do a real run without touching the machine.
+# HERDR_STATUS and PI_LIST set what the stubs report; every other call is logged to $sb/log.
+sb="$(mktemp -d)"; mkdir -p "$sb/nm" "$sb/fm/config" "$sb/bin"
+printf '# ai-native-kit-config\nagent: pi\n' >"$sb/nm/config.yaml"
+for t in gh-axi chrome-devtools-axi lavish-axi quota-axi tasks-axi no-mistakes omp; do
+  printf '#!/bin/sh\necho "%s $*" >>"%s/log"\n' "$t" "$sb" >"$sb/bin/$t"
+done
+cat >"$sb/bin/herdr" <<EOF
+#!/bin/sh
+case "\$1 \$2" in "integration status") printf '%b' "\$HERDR_STATUS" ;; *) echo "herdr \$*" >>"$sb/log" ;; esac
+EOF
+cat >"$sb/bin/pi" <<EOF
+#!/bin/sh
+case "\$1" in list) printf '%b' "\$PI_LIST" ;; *) echo "pi \$*" >>"$sb/log" ;; esac
+EOF
+chmod +x "$sb/bin"/*
+base_list='  npm:pi-web-access\n  npm:cc-safety-net\n'
+run_setup() { HOME="$sb" NM_HOME="$sb/nm" FM_HOME="$sb/fm" PATH="$sb/bin:$PATH" HERDR_STATUS="$1" PI_LIST="$2" "$HERE/setup.sh" ${3:+"$3"} 2>&1; }
+
+out="$(run_setup 'pi: not installed (x)\nomp: outdated (v9 < v10) (x)\n' "$base_list" --check)"
+if grep -q 'MISSING: herdr integration for pi' <<<"$out" && grep -q 'MISSING: herdr integration for omp' <<<"$out" && ! grep -q 'integration install' "$sb/log" 2>/dev/null; then ok "--check reports a missing or outdated herdr integration"; else bad "herdr integration not reported" "$out"; fi
+out="$(run_setup 'pi: current (v9) (x)\nomp: current (v10) (x)\n' "$base_list" --check)"
+if ! grep -q 'herdr integration' <<<"$out"; then ok "a current herdr integration is not flagged"; else bad "current herdr integration flagged" "$out"; fi
+out="$(run_setup 'pi: not installed (x)\nomp: current (v10) (x)\n' "$base_list")"
+if grep -qx 'herdr integration install pi' "$sb/log" && ! grep -q 'install omp' "$sb/log" && [ -d "$sb/.pi/agent/extensions" ]; then ok "a real run installs the missing herdr integration"; else bad "herdr integration not installed" "$out"; fi
+
+out="$(run_setup 'pi: current (v9) (x)\nomp: current (v10) (x)\n' "$base_list  npm:pi-mcp-adapter\n" --check)"
+if grep -q 'remove user-level pi-mcp-adapter' <<<"$out"; then ok "--check flags a user-level pi-mcp-adapter"; else bad "pi-mcp-adapter not flagged" "$out"; fi
+
+printf '{}\n' >"$sb/fm/config/crew-dispatch.json"
+out="$(run_setup 'pi: current (v9) (x)\nomp: current (v10) (x)\n' "$base_list" --check)"
+if grep -q 'crew-dispatch.json differs from the preset' <<<"$out" && [ "$(cat "$sb/fm/config/crew-dispatch.json")" = '{}' ]; then ok "a changed dispatch config gets a note and is kept"; else bad "dispatch drift mishandled" "$out"; fi
+cp "$HERE/presets/crew-dispatch.json" "$sb/fm/config/crew-dispatch.json"
+out="$(run_setup 'pi: current (v9) (x)\nomp: current (v10) (x)\n' "$base_list" --check)"
+if ! grep -q 'differs from the preset' <<<"$out"; then ok "a dispatch config equal to the preset gets no note"; else bad "preset copy flagged" "$out"; fi
+rm -rf "$sb"
+
 printf '%s passed, %s failed, %s skipped\n' "$pass" "$fail" "$skip"
 [ "$fail" = 0 ]
