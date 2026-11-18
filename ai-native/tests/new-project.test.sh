@@ -152,7 +152,7 @@ for t in gh-axi chrome-devtools-axi lavish-axi quota-axi tasks-axi no-mistakes o
 done
 cat >"$sb/bin/herdr" <<EOF
 #!/bin/sh
-case "\$1 \$2" in "integration status") printf '%b' "\$HERDR_STATUS" ;; *) echo "herdr \$*" >>"$sb/log" ;; esac
+case "\$1 \$2" in "integration status") [ -z "\$HERDR_FAIL" ] || exit 1; printf '%b' "\$HERDR_STATUS" ;; *) echo "herdr \$*" >>"$sb/log" ;; esac
 EOF
 cat >"$sb/bin/pi" <<EOF
 #!/bin/sh
@@ -168,6 +168,10 @@ out="$(run_setup 'pi: current (v9) (x)\nomp: current (v10) (x)\n' "$base_list" -
 if ! grep -q 'herdr integration' <<<"$out"; then ok "a current herdr integration is not flagged"; else bad "current herdr integration flagged" "$out"; fi
 out="$(run_setup 'pi: not installed (x)\nomp: current (v10) (x)\n' "$base_list")"
 if grep -qx 'herdr integration install pi' "$sb/log" && ! grep -q 'install omp' "$sb/log" && [ -d "$sb/.pi/agent/extensions" ]; then ok "a real run installs the missing herdr integration"; else bad "herdr integration not installed" "$out"; fi
+
+: >"$sb/log"
+out="$(HERDR_FAIL=1 run_setup '' "$base_list")"
+if grep -q 'skipped: Herdr integration check' <<<"$out" && ! grep -q 'MISSING: herdr' <<<"$out" && ! grep -q 'herdr integration install' "$sb/log"; then ok "a failing herdr integration status skips the check"; else bad "failed herdr status mishandled" "$out"; fi
 
 out="$(run_setup 'pi: current (v9) (x)\nomp: current (v10) (x)\n' "$base_list  npm:pi-mcp-adapter\n" --check)"
 if grep -q 'remove user-level pi-mcp-adapter' <<<"$out"; then ok "--check flags a user-level pi-mcp-adapter"; else bad "pi-mcp-adapter not flagged" "$out"; fi

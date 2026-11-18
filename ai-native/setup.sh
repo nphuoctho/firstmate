@@ -108,7 +108,7 @@ fi
 # Herdr learns each agent's working, blocked and done state from its integration for that agent.
 # The install needs the agent's extension folder, which only exists after the agent first ran.
 if command -v herdr >/dev/null 2>&1; then
-  hstatus="$(herdr integration status 2>/dev/null || true)"
+  if hstatus="$(herdr integration status 2>/dev/null)" && [ -n "$hstatus" ]; then
   for a in pi omp; do
     command -v "$a" >/dev/null 2>&1 || continue
     grep -q "^$a: current" <<<"$hstatus" && continue
@@ -117,6 +117,9 @@ if command -v herdr >/dev/null 2>&1; then
       herdr integration install "$a" || say "warning: herdr integration install $a failed"
     fi
   done
+  else
+    say "skipped: Herdr integration check (herdr integration status failed; is the Herdr server running?)"
+  fi
 fi
 
 # Firstmate local (gitignored) config: Pi workers on the Herdr backend, plus the dispatch preset.
