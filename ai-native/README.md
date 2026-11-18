@@ -137,7 +137,11 @@ The kit installs only two:
 | pi-web-access | web search and page fetch |
 | cc-safety-net | blocks destructive commands and reads of secret files |
 
-`setup.sh` removes a user-level copy of these packages, because Firstmate already covers what they do or they cost too much in every session:
+cc-safety-net blocks destructive git commands a worker types, not Firstmate's own scripts.
+In one sample it refused about 3.4 percent of real worker commands, mostly `git reset --hard`.
+Loosening it (`workflow.worktree_mode`) is your call, made in your own terminal.
+
+`setup.sh` also removes a user-level copy of the packages below, because Firstmate already covers what they do or they cost too much in every session:
 
 | Package | Why not |
 | --- | --- |
@@ -162,10 +166,6 @@ The kit does not install it, and `setup.sh` leaves it alone if you do.
 - Claude Code primaries have a tool-level guard for this, but Pi and omp primaries do not yet, so the rule depends on the agent following it.
 - Every sub-agent spends its own tokens, so a worker that fans out uses more quota.
 - Installed for your user, it loads in every Pi session, including the no-mistakes agents.
-
-cc-safety-net blocks destructive git commands a worker types, not Firstmate's own scripts.
-In one sample it refused about 3.4 percent of real worker commands, mostly `git reset --hard`.
-Loosening it (`workflow.worktree_mode`) is your call, made in your own terminal.
 
 ## Worker model tiers
 
