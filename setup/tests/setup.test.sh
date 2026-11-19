@@ -21,8 +21,13 @@ if jq -e '(.packages | length) == 5 and (.packages | index("npm:pi-markdown-prev
   jq -e '.defaultTools == ["+codemode"]' "$P/pi-primary-settings.json" >/dev/null &&
   jq -e '.format.enabled == false and .autofix.enabled == false' "$P/pi-lens.json" >/dev/null; then ok "primary-session presets pin the packages, turn codemode on and pi-lens formatting off"; else bad "primary-session presets are wrong"; fi
 if jq -e '.shared_quota == true and (.rules | length) == 6 and .default.model == "anthropic/claude-sonnet-5-5" and .default.effort == "medium" and ([.rules[].use.harness] | unique) == ["pi"]' "$P/crew-dispatch.json" >/dev/null; then ok "dispatch preset has six questions and the Sonnet medium default"; else bad "dispatch preset shape is wrong"; fi
-if [ "$(cat "$P/supervision-branch-model")" = anthropic/claude-haiku-5-5 ] && [ "$(cat "$P/supervision-branch-effort")" = medium ] &&
-  grep -q 'Conventional Commits' "$P/brief-include.md" && grep -q 'Conventional Branch' "$P/brief-include.md" && grep -q 'flank.github.io/flank/pr_titles' "$P/brief-include.md"; then ok "supervision and brief-include presets have the standard content"; else bad "supervision or brief-include preset wrong"; fi
+if [ "$(cat "$P/supervision-branch-model")" = anthropic/claude-haiku-5-5 ] && [ "$(cat "$P/supervision-branch-effort")" = medium ]; then ok "supervision presets have the standard content"; else bad "supervision preset wrong"; fi
+
+# The brief-include preset must reach workers: Firstmate's own brief builder has to emit it.
+bh="$TMP/bhome"; mkdir -p "$bh/config"; cp "$P/brief-include.md" "$bh/config/"
+if FM_HOME="$bh" "$HERE/../bin/fm-brief.sh" inc some-proj --scout >/dev/null 2>&1 &&
+  b="$bh/data/inc/brief.md" && grep -q '^# Home brief additions$' "$b" &&
+  sed -n '/^# Home brief additions$/,$p' "$b" | grep -q 'flank.github.io/flank/pr_titles'; then ok "the brief builder emits the brief-include preset"; else bad "brief builder did not emit the brief-include preset"; fi
 
 # The dispatch preset must pass Firstmate's own crew-dispatch validation (bootstrap prints CREW_DISPATCH: for a bad file).
 vh="$TMP/vhome"; mkdir -p "$vh/config"
@@ -57,7 +62,7 @@ esac
 EOF
 printf '#!/bin/sh\n' >"$sb/bin/treehouse"
 chmod +x "$sb/bin"/*
-PI_LIST='User packages:\n  npm:pi-web-access\n    /x\n  npm:pi-lens@4.5.0\n    /y\nProject packages:\n  npm:pi-markdown-preview\n    /z\n'
+PI_LIST='User packages:\n  npm:pi-web-access (filtered)\n    /x\n  npm:pi-lens@4.5.0 (filtered)\n    /y\nProject packages:\n  npm:pi-markdown-preview\n    /z\n'
 HERDR_STATUS='pi: not installed (x)\n'
 run() { HOME="$sb" FM_HOME="$sb/fm" PATH="$sb/bin:$PATH" HERDR_STATUS="$HERDR_STATUS" PI_LIST="$PI_LIST" "$HERE/setup.sh" ${1:+"$1"} 2>&1; }
 snap() { (cd "$sb" && find fm -type f -not -path '*/.git/*' | sort | xargs -r cksum; cksum <fm/.git/info/exclude 2>/dev/null); }

@@ -59,7 +59,7 @@ done
 # user_entry <source>: prints the user-level `pi list` line for a package, with or without a pinned @version.
 # Only the "User packages:" section counts, so a project-level package of the same name never matches.
 user_entry() {
-  awk -v s="$1" '/^User packages:/ { u = 1; next } /^[^ ]/ { u = 0 } u && /^  [^ ]/ { sub(/^ +/, ""); t = $0; sub(/@[^\/@]+$/, "", t); if (t == s || $0 == s) { print $0; exit } }' <<<"$installed"
+  awk -v s="$1" '/^User packages:/ { u = 1; next } /^[^ ]/ { u = 0 } u && /^  [^ ]/ { sub(/^ +/, ""); sub(/ \(filtered\)$/, ""); t = $0; sub(/@[^\/@]+$/, "", t); if (t == s || $0 == s) { print $0; exit } }' <<<"$installed"
 }
 
 if command -v pi >/dev/null 2>&1; then
