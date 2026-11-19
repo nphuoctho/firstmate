@@ -141,6 +141,7 @@ if [ "$rc" = 1 ] && grep -q 'MISSING: herdr integration for pi (install failed)'
 rm -rf "$sb/fm2"; mkdir -p "$sb/fm2"; git -C "$sb/fm2" init -q
 mk_min "${BASIC[@]}" jq node gh curl
 rm -f "$sb/min/gh-axi"
+# shellcheck disable=SC2016 # $1 and $3 belong to the generated stub
 printf '#!/bin/sh\n[ "$1 $2" = "install -g" ] || exit 0\nprintf "#!/bin/sh\\nexit 1\\n" >"%s/min/$3"\nchmod +x "%s/min/$3"\n' "$sb" "$sb" >"$sb/min/npm"; chmod +x "$sb/min/npm"
 out="$(run_min)"; rc=$?
 if [ "$rc" = 1 ] && grep -q 'MISSING: gh-axi (setup hooks failed)' <<<"$out" && grep -qx 'INCOMPLETE' <<<"$out"; then ok "a failed axi setup hooks ends INCOMPLETE"; else bad "failed setup hooks mishandled (exit $rc)" "$out"; fi
