@@ -36,7 +36,7 @@ hint() {
   case "$1" in
     herdr) printf 'install it from https://herdr.dev' ;;
     pi) printf 'install it from https://pi.dev' ;;
-    treehouse) printf 'install it with its vendor installer; Firstmate needs it for the herdr backend' ;;
+    treehouse) printf 'install it with: curl -fsSL https://kunchenguid.github.io/treehouse/install.sh | sh' ;;
     *) printf 'install it with your OS package manager' ;;
   esac
 }
