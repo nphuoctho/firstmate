@@ -91,7 +91,7 @@ if command -v pi >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
   # Codemode is on for every session (primary and workers), so it lives in the user-level settings.
   # Never mixed into a list that names plain tools or is empty, since pi rejects that mix and [] means no tools.
   us="$PI_AGENT_DIR/settings.json"
-  if jq -e '(.defaultTools // []) | index("+codemode")' "$us" >/dev/null 2>&1; then :
+  if jq -e '(.defaultTools // []) | (index("+codemode") or index("codemode"))' "$us" >/dev/null 2>&1; then :
   elif [ ! -s "$us" ] || jq -e 'has("defaultTools") | not' "$us" >/dev/null 2>&1 ||
     jq -e '.defaultTools | length > 0 and all(.[]; startswith("+") or startswith("-"))' "$us" >/dev/null 2>&1; then
     if act "pi codemode (defaultTools +codemode in $us)"; then
@@ -179,8 +179,4 @@ if excl="$(git -C "$HOME_DIR" rev-parse --git-path info/exclude 2>/dev/null)" &&
   done
 fi
 
-say "--- versions"
-for t in pi herdr tasks-axi gh-axi quota-axi lavish-axi chrome-devtools-axi; do
-  command -v "$t" >/dev/null 2>&1 && printf '%s: %s\n' "$t" "$("$t" --version 2>&1 | head -1)"
-done
 if [ "$bad" = 0 ]; then say "OK"; else say "INCOMPLETE"; exit 1; fi
