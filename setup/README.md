@@ -1,0 +1,99 @@
+# Standard setup
+
+One command sets up a machine and a Firstmate home the same way every time.
+
+```sh
+setup/setup.sh --check   # report what is missing, change nothing; exits 1 if anything is missing
+setup/setup.sh           # install and seed what is missing
+```
+
+Any other argument prints the usage and does nothing.
+Run it whenever you set up a new machine or a new Firstmate home. It is safe to run again: it only fills gaps.
+`FM_HOME` points it at a different Firstmate home (the default is this repo).
+
+Install these first. The script reports any that are missing:
+`git`, `gh`, `node`, `npm`, `jq`, `curl`, `treehouse`, `herdr` (https://herdr.dev) and `pi` (https://pi.dev).
+
+## What the standard contains
+
+### Command-line tools
+
+| Tool | Use |
+| --- | --- |
+| `gh-axi` | GitHub |
+| `chrome-devtools-axi` | browser work |
+| `quota-axi` | model quota |
+| `lavish-axi` | visual review boards |
+| `tasks-axi` | the backlog |
+
+Installed with `npm install -g`. `setup hooks` is run for `gh-axi`, `chrome-devtools-axi` and `lavish-axi`.
+The script also installs the Herdr integration for `pi`, so Herdr shows whether the agent is working, blocked or done.
+
+### Pi packages
+
+Installed for your user, so they load in every Pi session (the primary, workers and the no-mistakes agents):
+
+| Package | Use |
+| --- | --- |
+| `cc-safety-net` | blocks destructive commands and reads of secret files |
+| `pi-web-access` | web search and page fetch |
+| `git:github.com/DietrichGebert/ponytail` | Ponytail, the small-change coding style |
+
+Installed for the primary Firstmate session only. They are written to this home's `.pi/settings.json` with `pi install -l`, which workers never read because they run in their own copies of each repo:
+
+| Package | Use |
+| --- | --- |
+| `pi-markdown-preview` | Markdown previews |
+| `pi-context-view@0.8.4` | `/context` |
+| `pi-lens@4.5.1` | live code feedback; auto-format and auto-fix are off (see `.pi-lens.json`) |
+| `@juicesharp/rpiv-todo@2.15.0` | a todo list tool |
+| `nphuoctho/pi-usage-bars` (pinned commit) | `/usage` |
+
+The same settings file turns Pi's codemode on (`"defaultTools": ["+codemode"]`).
+These five cost tokens or memory in every session they load in, so the script removes a user-level copy if it finds one and never installs them at user level.
+`.pi/settings.json`, `.pi/npm/`, `.pi/git/` and `.pi-lens.json` are added to the home's `.git/info/exclude`, so they are never committed.
+
+### Firstmate config
+
+Copied from `presets/` into the home's `config/` only when the file is missing or empty. A file that already exists is never overwritten.
+When it differs from the preset, setup prints a `diff` command so you can compare.
+
+| File | What it does |
+| --- | --- |
+| `crew-dispatch.json` | picks the model for each worker (see below) |
+| `brief-include.md` | git rules and a check-before-done step added to every worker's instructions |
+| `supervision-branch-model`, `supervision-branch-effort` | Haiku 5.5 at `medium` for Firstmate's background supervision |
+| `park-on-review`, `auto-land`, `pr-register-scan` | empty files; each one switches that Firstmate option on |
+
+### Git rules
+
+`brief-include.md` tells every worker to follow:
+- [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages;
+- [Conventional Branch](https://conventionalbranch.org/) for branch names (Firstmate picks the name);
+- pull request titles in the Conventional Commits form, as described at https://flank.github.io/flank/pr_titles/, written in plain English.
+
+### Worker model choice
+
+All workers run through Pi with Claude on shared quota. Firstmate asks six questions in order and stops at the first yes. When torn between two answers it picks the more careful one.
+
+| Question | Model |
+| --- | --- |
+| 1. Is the job to review work someone just finished? | Opus 5.5, high |
+| 2. Is the job to find something out, with a report as the result? | Sonnet 5.5, high |
+| 3. Is it unclear how to do it, with a plan for another worker as the result? | Opus 5.5, high |
+| 4. Would a mistake be hard to notice, hard to undo, or cause real harm? | Sonnet 5.5, high |
+| 5. Does it follow a known pattern and need almost no judgment? | Haiku 5.5, medium |
+| 6. Everything else | Sonnet 5.5, medium |
+
+## Changing the standard
+
+- Change a preset in `presets/` to change the standard for new setups. Homes that already have the file keep theirs, so edit their `config/` file too.
+- Package versions live in `presets/pi-primary-settings.json`. After changing one, run `setup/setup.sh`: it installs any pin that is not listed yet. If the old version is still listed in `.pi/settings.json`, remove that entry by hand.
+- A Pi settings file that already sets `defaultTools` with plain tool names (not `+name` entries) is not changed. Setup prints a note, and you add `+codemode` yourself.
+
+## Checks
+
+`setup/tests/setup.test.sh` needs no network and installs nothing. It checks that the presets are valid JSON, that the dispatch preset passes Firstmate's own validation, and that `--check` and a real run behave as described. It uses a scratch home with stand-in `pi`, `herdr` and installers.
+
+`--check` installs nothing and changes no settings. It can still create cache files, for example `pi list` creates `~/.pi/agent/`.
+A real run in a sandbox needs `HOME`, `NPM_CONFIG_PREFIX` and `FM_HOME` set to scratch folders and a limited `PATH`, because `npm install -g` and `pi install` write under the real npm prefix and `~/.pi`.
