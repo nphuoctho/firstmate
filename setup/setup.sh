@@ -44,14 +44,20 @@ for t in git gh node npm jq curl treehouse herdr pi; do
   command -v "$t" >/dev/null 2>&1 || miss "$t ($(hint "$t"))"
 done
 
+# run_or_miss <what> <command...>: a failing command is reported as missing, and the run goes on.
+run_or_miss() { local what="$1"; shift; "$@" || miss "$what (command failed: $*)"; }
+
 for c in "${NPM_CLIS[@]}"; do
   command -v "$c" >/dev/null 2>&1 || {
     if act "$c"; then
-      npm install -g "$c"
-      # Same follow-up step as Firstmate's own install hint (bin/fm-bootstrap.sh).
-      case "$c" in
-        gh-axi | chrome-devtools-axi | lavish-axi) "$c" setup hooks || say "warning: $c setup hooks failed" ;;
-      esac
+      if npm install -g "$c"; then
+        # Same follow-up step as Firstmate's own install hint (bin/fm-bootstrap.sh).
+        case "$c" in
+          gh-axi | chrome-devtools-axi | lavish-axi) "$c" setup hooks || say "warning: $c setup hooks failed" ;;
+        esac
+      else
+        miss "$c (npm install -g failed)"
+      fi
     fi
   }
 done
@@ -59,41 +65,71 @@ done
 # user_entry <source>: prints the user-level `pi list` line for a package, with or without a pinned @version.
 # Only the "User packages:" section counts, so a project-level package of the same name never matches.
 user_entry() {
-  awk -v s="$1" '/^User packages:/ { u = 1; next } /^[^ ]/ { u = 0 } u && /^  [^ ]/ { sub(/^ +/, ""); sub(/ \(filtered\)$/, ""); t = $0; sub(/@[^\/@]+$/, "", t); if (t == s || $0 == s) { print $0; exit } }' <<<"$installed"
+  awk -v s="$1" '/^User packages:/ { u = 1; next } /^[^ ]/ { u = 0 } u && /^  [^ ]/ { sub(/^ +/, ""); sub(/ \(filtered\)$/, ""); t = $0; sub(/@[^\/@]+$/, "", t); if (t == s) { print $0; exit } }' <<<"$installed"
 }
 
-if command -v pi >/dev/null 2>&1; then
-  installed="$(pi list 2>/dev/null || true)"
+# -a trusts this home's project files for the one command, so it also works without a terminal.
+install_local() { (cd "$HOME_DIR" && pi install -l -a "$1"); }
+
+PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
+if command -v pi >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+  # FORCE_COLOR=0 keeps Pi from colouring the headers this parse depends on.
+  installed="$(FORCE_COLOR=0 pi list 2>/dev/null || true)"
   for p in "${PI_PACKAGES[@]}"; do
-    [ -n "$(user_entry "$p")" ] || { if act "pi package $p"; then pi install "$p"; fi; }
+    [ -n "$(user_entry "$p")" ] || { if act "pi package $p"; then run_or_miss "pi package $p" pi install "$p"; fi; }
   done
   for p in "${NOT_USER_LEVEL[@]}"; do
     e="$(user_entry "$p")"
     if [ -n "$e" ]; then
-      if act "remove user-level $p (primary session only)"; then pi remove "$e"; fi
+      if act "remove user-level $p (primary session only)"; then run_or_miss "remove user-level $p" pi remove "$e"; fi
     fi
   done
 
-  # Primary-session packages go into the Firstmate home's own .pi/settings.json, which workers never read.
-  # A package counts as present when settings.json lists that exact pinned source.
-  settings="$HOME_DIR/.pi/settings.json"
-  have="$(jq -r '(.packages // [])[] | if type == "object" then .source else . end' "$settings" 2>/dev/null || true)"
-  while IFS= read -r p; do
-    grep -qxF "$p" <<<"$have" || { if act "primary-session pi package $p (in $settings)"; then (cd "$HOME_DIR" && pi install -l "$p"); fi; }
-  done < <(jq -r '.packages[]' "$PRESETS/pi-primary-settings.json")
-  # defaultTools: turn codemode on. Never mixed into a list that names plain tools, since pi rejects that mix.
-  if jq -e '(.defaultTools // []) | index("+codemode")' "$settings" >/dev/null 2>&1; then :
-  elif [ ! -s "$settings" ] || jq -e '(.defaultTools // []) | all(.[]; startswith("+") or startswith("-"))' "$settings" >/dev/null 2>&1; then
-    if act "pi codemode (defaultTools +codemode in $settings)"; then
-      mkdir -p "$HOME_DIR/.pi"
-      [ -s "$settings" ] || printf '{}\n' >"$settings"
-      jq '.defaultTools = ((.defaultTools // []) + ["+codemode"])' "$settings" >"$settings.tmp" && mv "$settings.tmp" "$settings"
+  # Codemode is on for every session (primary and workers), so it lives in the user-level settings.
+  # Never mixed into a list that names plain tools or is empty, since pi rejects that mix and [] means no tools.
+  us="$PI_AGENT_DIR/settings.json"
+  if jq -e '(.defaultTools // []) | index("+codemode")' "$us" >/dev/null 2>&1; then :
+  elif [ ! -s "$us" ] || jq -e 'has("defaultTools") | not' "$us" >/dev/null 2>&1 ||
+    jq -e '.defaultTools | length > 0 and all(.[]; startswith("+") or startswith("-"))' "$us" >/dev/null 2>&1; then
+    if act "pi codemode (defaultTools +codemode in $us)"; then
+      mkdir -p "$PI_AGENT_DIR"
+      [ -s "$us" ] || printf '{}\n' >"$us"
+      if jq '.defaultTools = ((.defaultTools // []) + ["+codemode"])' "$us" >"$us.tmp"; then
+        mv "$us.tmp" "$us"
+      else
+        rm -f "$us.tmp"; miss "pi codemode (could not update $us)"
+      fi
     fi
   else
-    say "note: $settings defaultTools names plain tools, so +codemode is not added. Add it by hand."
+    say "note: $us defaultTools is empty or names plain tools, so +codemode is not added. Add it by hand."
   fi
+
+  # Primary-session packages go into the Firstmate home's own .pi/settings.json, which workers never read.
+  # A plain entry counts as present when settings.json lists that exact pinned source.
+  # An object entry (a package with filters) counts as present when settings.json has an object for that source.
+  settings="$HOME_DIR/.pi/settings.json"
+  have="$(jq -r '(.packages // [])[] | if type == "object" then empty else . end' "$settings" 2>/dev/null || true)"
+  while IFS= read -r entry; do
+    if [ "$(jq -r 'type' <<<"$entry")" = string ]; then
+      p="$(jq -r '.' <<<"$entry")"
+      grep -qxF "$p" <<<"$have" || { if act "primary-session pi package $p (in $settings)"; then run_or_miss "primary-session pi package $p" install_local "$p"; fi; }
+    else
+      p="$(jq -r '.source' <<<"$entry")"
+      jq -e --arg p "$p" '(.packages // []) | any(.[]; type == "object" and .source == $p)' "$settings" >/dev/null 2>&1 || {
+        if act "primary-session pi package $p with filters (in $settings)"; then
+          mkdir -p "$HOME_DIR/.pi"
+          [ -s "$settings" ] || printf '{}\n' >"$settings"
+          if jq --argjson e "$entry" --arg p "$p" '.packages = [(.packages // [])[] | select((if type == "object" then .source else . end) != $p)] + [$e]' "$settings" >"$settings.tmp"; then
+            mv "$settings.tmp" "$settings"
+          else
+            rm -f "$settings.tmp"; miss "primary-session pi package $p (could not update $settings)"
+          fi
+        fi
+      }
+    fi
+  done < <(jq -c '.packages[]' "$PRESETS/pi-primary-settings.json")
 else
-  say "skipped: Pi package check (pi is not installed, so the packages cannot be listed)"
+  say "skipped: Pi package check (needs both pi and jq installed, so the packages cannot be listed)"
 fi
 
 # Herdr learns the agent's working, blocked and done state from its integration.
@@ -102,12 +138,12 @@ if command -v herdr >/dev/null 2>&1 && command -v pi >/dev/null 2>&1; then
   if hstatus="$(herdr integration status 2>/dev/null)" && [ -n "$hstatus" ]; then
     if ! grep -q "^pi: current" <<<"$hstatus"; then
       if act "herdr integration for pi"; then
-        mkdir -p "$HOME/.pi/agent/extensions"
+        mkdir -p "$PI_AGENT_DIR/extensions"
         herdr integration install pi || say "warning: herdr integration install pi failed"
       fi
     fi
   else
-    say "skipped: Herdr integration check (herdr integration status failed; is the Herdr server running?)"
+    say "skipped: Herdr integration check (herdr integration status failed)"
   fi
 fi
 

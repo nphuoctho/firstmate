@@ -4,9 +4,12 @@
     "npm:pi-context-view@0.8.4",
     "npm:pi-lens@4.5.1",
     "npm:@juicesharp/rpiv-todo@2.15.0",
-    "git:github.com/nphuoctho/pi-usage-bars@e595440"
-  ],
-  "defaultTools": [
-    "+codemode"
+    "git:github.com/nphuoctho/pi-usage-bars@e595440",
+    {
+      "source": "git:github.com/DietrichGebert/ponytail",
+      "autoload": false,
+      "extensions": ["!**"],
+      "skills": ["!**"]
+    }
   ]
 }

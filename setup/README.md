@@ -8,11 +8,15 @@ setup/setup.sh           # install and seed what is missing
 ```
 
 Any other argument prints the usage and does nothing.
-Run it whenever you set up a new machine or a new Firstmate home. It is safe to run again: it only fills gaps.
+Run it whenever you set up a new machine or a new Firstmate home.
+It is safe to run again, because it only fills gaps.
+A step that fails is reported as missing and the rest of the setup still runs, so the run ends with `INCOMPLETE` and exit code 1.
 `FM_HOME` points it at a different Firstmate home (the default is this repo).
 
-Install these first. The script reports any that are missing:
+Install these first.
+The script reports any that are missing:
 `git`, `gh`, `node`, `npm`, `jq`, `curl`, `treehouse`, `herdr` (https://herdr.dev) and `pi` (https://pi.dev).
+Without `pi` or `jq`, the Pi package and settings steps are skipped with a message.
 
 ## What the standard contains
 
@@ -26,12 +30,13 @@ Install these first. The script reports any that are missing:
 | `lavish-axi` | visual review boards |
 | `tasks-axi` | the backlog |
 
-Installed with `npm install -g`. `setup hooks` is run for `gh-axi`, `chrome-devtools-axi` and `lavish-axi`.
+They are installed with `npm install -g`.
+`setup hooks` is run for `gh-axi`, `chrome-devtools-axi` and `lavish-axi`.
 The script also installs the Herdr integration for `pi`, so Herdr shows whether the agent is working, blocked or done.
 
 ### Pi packages
 
-Installed for your user, so they load in every Pi session (the primary, workers and the no-mistakes agents):
+These are installed for your user, so they load in every Pi session (the primary, workers and the no-mistakes agents):
 
 | Package | Use |
 | --- | --- |
@@ -39,7 +44,11 @@ Installed for your user, so they load in every Pi session (the primary, workers 
 | `pi-web-access` | web search and page fetch |
 | `git:github.com/DietrichGebert/ponytail` | Ponytail, the small-change coding style |
 
-Installed for the primary Firstmate session only. They are written to this home's `.pi/settings.json` with `pi install -l`, which workers never read because they run in their own copies of each repo:
+Codemode is also on for every session.
+Setup adds `"+codemode"` to `defaultTools` in your user-level Pi settings (`~/.pi/agent/settings.json`) and keeps every other key.
+
+These are installed for the primary Firstmate session only.
+They are written to this home's `.pi/settings.json` with `pi install -l`, which workers never read because they run in their own copies of each repo:
 
 | Package | Use |
 | --- | --- |
@@ -49,13 +58,16 @@ Installed for the primary Firstmate session only. They are written to this home'
 | `@juicesharp/rpiv-todo@2.15.0` | a todo list tool |
 | `nphuoctho/pi-usage-bars` (pinned commit) | `/usage` |
 
-The same settings file turns Pi's codemode on (`"defaultTools": ["+codemode"]`).
-These five cost tokens or memory in every session they load in, so the script removes a user-level copy if it finds one and never installs them at user level.
+The same file also lists Ponytail with its extensions and skills switched off.
+That keeps Ponytail on for workers and no-mistakes, which use the user-level copy, and off in the primary session.
+The five packages above cost tokens or memory in every session they load in.
+So the script removes a user-level copy if it finds one, and never installs them at user level.
 `.pi/settings.json`, `.pi/npm/`, `.pi/git/` and `.pi-lens.json` are added to the home's `.git/info/exclude`, so they are never committed.
 
 ### Firstmate config
 
-Copied from `presets/` into the home's `config/` only when the file is missing or empty. A file that already exists is never overwritten.
+Files are copied from `presets/` into the home's `config/` only when the file is missing or empty.
+A file with content is never overwritten.
 When it differs from the preset, setup prints a `diff` command so you can compare.
 
 | File | What it does |
@@ -74,7 +86,9 @@ When it differs from the preset, setup prints a `diff` command so you can compar
 
 ### Worker model choice
 
-All workers run through Pi with Claude on shared quota. Firstmate asks six questions in order and stops at the first yes. When torn between two answers it picks the more careful one.
+All workers run through Pi with Claude on shared quota.
+Firstmate asks six questions in order and stops at the first yes.
+When torn between two answers it picks the more careful one.
 
 | Question | Model |
 | --- | --- |
@@ -87,13 +101,21 @@ All workers run through Pi with Claude on shared quota. Firstmate asks six quest
 
 ## Changing the standard
 
-- Change a preset in `presets/` to change the standard for new setups. Homes that already have the file keep theirs, so edit their `config/` file too.
-- Package versions live in `presets/pi-primary-settings.json`. After changing one, run `setup/setup.sh`: it installs any pin that is not listed yet. If the old version is still listed in `.pi/settings.json`, remove that entry by hand.
-- A Pi settings file that already sets `defaultTools` with plain tool names (not `+name` entries) is not changed. Setup prints a note, and you add `+codemode` yourself.
+- Change a preset in `presets/` to change the standard for new setups.
+  Homes that already have the file keep theirs, so edit their `config/` file too.
+- Package versions live in `presets/pi-primary-settings.json`.
+  After changing one, run `setup/setup.sh`: Pi replaces the old version of the same package.
+- A user-level `defaultTools` that is empty or names plain tools (not `+name` entries) is not changed.
+  Setup prints a note, and you add `+codemode` yourself.
 
 ## Checks
 
-`setup/tests/setup.test.sh` needs no network and installs nothing. It checks that the presets are valid JSON, that the dispatch preset passes Firstmate's own validation, and that `--check` and a real run behave as described. It uses a scratch home with stand-in `pi`, `herdr` and installers.
+`setup/tests/setup.test.sh` needs no network and installs nothing.
+It checks that the presets are valid JSON, that the dispatch preset passes Firstmate's own validation, and that the brief builder emits `brief-include.md`.
+It also checks that `--check` and a real run behave as described, including with `npm` or `jq` missing.
+It uses a scratch home with stand-in `pi`, `herdr` and installers.
 
-`--check` installs nothing and changes no settings. It can still create cache files, for example `pi list` creates `~/.pi/agent/`.
-A real run in a sandbox needs `HOME`, `NPM_CONFIG_PREFIX` and `FM_HOME` set to scratch folders and a limited `PATH`, because `npm install -g` and `pi install` write under the real npm prefix and `~/.pi`.
+`--check` installs nothing and changes no settings.
+It can still create cache files, for example `pi list` creates `~/.pi/agent/`.
+A real run in a sandbox needs `HOME`, `NPM_CONFIG_PREFIX` and `FM_HOME` set to scratch folders and a limited `PATH`.
+That is because `npm install -g` and `pi install` write under the real npm prefix and `~/.pi`.

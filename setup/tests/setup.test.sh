@@ -17,9 +17,9 @@ for t in jq git; do command -v "$t" >/dev/null 2>&1 || { echo "missing $t"; exit
 
 # Presets.
 for f in "$P"/*.json; do if jq -e . "$f" >/dev/null 2>&1; then ok "preset $(basename "$f") is valid JSON"; else bad "preset $(basename "$f") is not valid JSON"; fi; done
-if jq -e '(.packages | length) == 5 and (.packages | index("npm:pi-markdown-preview")) != null and (.packages | index("npm:pi-lens@4.5.1")) != null and (.packages | index("npm:pi-context-view@0.8.4")) != null and (.packages | index("npm:@juicesharp/rpiv-todo@2.15.0")) != null and (.packages | index("git:github.com/nphuoctho/pi-usage-bars@e595440")) != null' "$P/pi-primary-settings.json" >/dev/null &&
-  jq -e '.defaultTools == ["+codemode"]' "$P/pi-primary-settings.json" >/dev/null &&
-  jq -e '.format.enabled == false and .autofix.enabled == false' "$P/pi-lens.json" >/dev/null; then ok "primary-session presets pin the packages, turn codemode on and pi-lens formatting off"; else bad "primary-session presets are wrong"; fi
+if jq -e '(.packages | length) == 6 and (.packages | index("npm:pi-markdown-preview")) != null and (.packages | index("npm:pi-lens@4.5.1")) != null and (.packages | index("npm:pi-context-view@0.8.4")) != null and (.packages | index("npm:@juicesharp/rpiv-todo@2.15.0")) != null and (.packages | index("git:github.com/nphuoctho/pi-usage-bars@e595440")) != null' "$P/pi-primary-settings.json" >/dev/null &&
+  jq -e '(has("defaultTools") | not) and (.packages[5] == {source: "git:github.com/DietrichGebert/ponytail", autoload: false, extensions: ["!**"], skills: ["!**"]})' "$P/pi-primary-settings.json" >/dev/null &&
+  jq -e '.format.enabled == false and .autofix.enabled == false' "$P/pi-lens.json" >/dev/null; then ok "primary-session presets pin the packages, turn Ponytail off and pi-lens formatting off"; else bad "primary-session presets are wrong"; fi
 if jq -e '.shared_quota == true and (.rules | length) == 6 and .default.model == "anthropic/claude-sonnet-5-5" and .default.effort == "medium" and ([.rules[].use.harness] | unique) == ["pi"]' "$P/crew-dispatch.json" >/dev/null; then ok "dispatch preset has six questions and the Sonnet medium default"; else bad "dispatch preset shape is wrong"; fi
 if [ "$(cat "$P/supervision-branch-model")" = anthropic/claude-haiku-5-5 ] && [ "$(cat "$P/supervision-branch-effort")" = medium ]; then ok "supervision presets have the standard content"; else bad "supervision preset wrong"; fi
 
@@ -54,9 +54,10 @@ EOF
 cat >"$sb/bin/pi" <<EOF
 #!/bin/sh
 case "\$1 \$2" in
-  "list ") printf '%b' "\$PI_LIST" ;;
-  "install -l") echo "pi \$*" >>"$sb/log"; mkdir -p .pi; [ -s .pi/settings.json ] || echo '{}' >.pi/settings.json
-    jq --arg p "\$3" '.packages += [\$p]' .pi/settings.json >.pi/s.tmp && mv .pi/s.tmp .pi/settings.json ;;
+  "list ") if [ -n "\$FORCE_COLOR" ] && [ "\$FORCE_COLOR" != 0 ]; then printf '\033[1mUser packages:\033[22m\n'; printf '%b' "\$PI_LIST" | tail -n +2; else printf '%b' "\$PI_LIST"; fi ;;
+  "install -l") [ "\$3" = -a ] || { echo "Project is not trusted. Use --approve to modify local package config." >&2; exit 1; }
+    echo "pi \$*" >>"$sb/log"; mkdir -p .pi; [ -s .pi/settings.json ] || echo '{}' >.pi/settings.json
+    jq --arg p "\$4" '.packages += [\$p]' .pi/settings.json >.pi/s.tmp && mv .pi/s.tmp .pi/settings.json ;;
   *) echo "pi \$*" >>"$sb/log" ;;
 esac
 EOF
@@ -71,6 +72,7 @@ before="$(snap)"
 out="$(run --check)"
 gaps=0
 for want in 'pi package npm:cc-safety-net' 'pi package git:github.com/DietrichGebert/ponytail' 'primary-session pi package npm:pi-context-view@0.8.4' \
+  'primary-session pi package git:github.com/DietrichGebert/ponytail with filters' \
   'primary-session pi package git:github.com/nphuoctho/pi-usage-bars@e595440' 'pi codemode' 'herdr integration for pi' 'config/crew-dispatch.json' 'config/brief-include.md' \
   'config/supervision-branch-model' 'config/supervision-branch-effort' 'config/park-on-review' 'config/auto-land' 'config/pr-register-scan' '.pi-lens.json' \
   'git exclude entry .pi/settings.json' 'git exclude entry .pi-lens.json' 'remove user-level npm:pi-lens'; do
@@ -78,16 +80,18 @@ for want in 'pi package npm:cc-safety-net' 'pi package git:github.com/DietrichGe
 done
 if grep -q 'remove user-level npm:pi-markdown-preview' <<<"$out"; then gaps=1; bad "a project-level package was treated as user-level"; fi
 [ "$gaps" = 0 ] && ok "--check reports every gap"
-if [ "$before" = "$(snap)" ] && [ ! -e "$sb/fm/.pi" ] && ! grep -Eq 'install|remove' "$sb/log" 2>/dev/null; then ok "--check writes nothing"; else bad "--check changed the sandbox"; fi
+if [ "$before" = "$(snap)" ] && [ ! -e "$sb/fm/.pi" ] && [ ! -e "$sb/.pi/agent/settings.json" ] && ! grep -Eq 'install|remove' "$sb/log" 2>/dev/null; then ok "--check writes nothing"; else bad "--check changed the sandbox"; fi
 
 # A real run applies everything. A changed file survives with a drift note, and a second run changes nothing.
-mkdir -p "$sb/fm/config"; printf 'custom-model\n' >"$sb/fm/config/supervision-branch-model"
+mkdir -p "$sb/fm/config" "$sb/.pi/agent"; printf 'custom-model\n' >"$sb/fm/config/supervision-branch-model"
+printf '{"theme":"dark","defaultTools":["-write"]}\n' >"$sb/.pi/agent/settings.json"
 out="$(run)"
 S="$sb/fm/.pi/settings.json"
-if [ "$(jq -c '.packages' "$S")" = "$(jq -c '.packages' "$P/pi-primary-settings.json")" ] && jq -e '.defaultTools == ["+codemode"]' "$S" >/dev/null &&
-  grep -qx 'pi install npm:cc-safety-net' "$sb/log" && grep -qx 'pi install git:github.com/DietrichGebert/ponytail' "$sb/log" &&
+if [ "$(jq -c '.packages' "$S")" = "$(jq -c '.packages' "$P/pi-primary-settings.json")" ] && ! jq -e 'has("defaultTools")' "$S" >/dev/null &&
+  jq -e '.theme == "dark" and .defaultTools == ["-write", "+codemode"]' "$sb/.pi/agent/settings.json" >/dev/null &&
+  grep -qx 'pi install npm:cc-safety-net' "$sb/log" && grep -qx 'pi install -l -a npm:pi-lens@4.5.1' "$sb/log" && grep -qx 'pi install git:github.com/DietrichGebert/ponytail' "$sb/log" &&
   ! grep -q 'pi install npm:pi-web-access' "$sb/log" && grep -qx 'pi remove npm:pi-lens@4.5.0' "$sb/log" &&
-  ! grep -q 'pi remove npm:pi-markdown-preview' "$sb/log" && grep -qx 'herdr integration install pi' "$sb/log"; then ok "a real run installs each package at the right level"; else bad "real run package handling wrong" "$out"; fi
+  ! grep -q 'pi remove npm:pi-markdown-preview' "$sb/log" && grep -qx 'herdr integration install pi' "$sb/log"; then ok "a real run installs each package at the right level, codemode at user level, Ponytail off in the primary"; else bad "real run package handling wrong" "$out"; fi
 if cmp -s "$P/brief-include.md" "$sb/fm/config/brief-include.md" && cmp -s "$P/crew-dispatch.json" "$sb/fm/config/crew-dispatch.json" &&
   cmp -s "$P/supervision-branch-effort" "$sb/fm/config/supervision-branch-effort" && cmp -s "$P/pi-lens.json" "$sb/fm/.pi-lens.json" &&
   [ -e "$sb/fm/config/park-on-review" ] && [ -e "$sb/fm/config/auto-land" ] && [ -e "$sb/fm/config/pr-register-scan" ]; then ok "a real run seeds the config files and option flags"; else bad "config not seeded" "$out"; fi
@@ -103,6 +107,33 @@ if [ "$(snap)" = "$before" ] && ! grep -Eq 'install' "$sb/log"; then ok "a secon
 # Herdr status failing skips the integration check rather than reporting it missing.
 out="$(HERDR_FAIL=1 run --check)"
 if grep -q 'skipped: Herdr integration check' <<<"$out" && ! grep -q 'MISSING: herdr integration' <<<"$out"; then ok "a failing herdr status skips the integration check"; else bad "failed herdr status mishandled" "$out"; fi
+
+# Colour in `pi list` (FORCE_COLOR set outside) must not hide the user-level packages.
+out="$(FORCE_COLOR=1 run --check)"
+if ! grep -q 'MISSING: pi package npm:pi-web-access' <<<"$out"; then ok "a coloured pi list is still read"; else bad "FORCE_COLOR broke the pi list parse" "$out"; fi
+
+# defaultTools: [] means "no built-in tools" and is left alone with a note.
+printf '{"defaultTools":[]}\n' >"$sb/.pi/agent/settings.json"
+out="$(run --check)"
+if grep -q 'defaultTools is empty or names plain tools' <<<"$out" && ! grep -q 'MISSING: pi codemode' <<<"$out"; then ok "an empty defaultTools is only noted"; else bad "empty defaultTools mishandled" "$out"; fi
+
+# A missing tool must not stop the run: curated PATH holding only the stubs and the basic tools.
+mk_min() {
+  rm -rf "$sb/min"; mkdir -p "$sb/min"
+  for t in "$@"; do ln -s "$(command -v "$t")" "$sb/min/$t"; done
+  cp "$sb/bin"/* "$sb/min/"
+}
+BASIC=(bash git awk grep cmp cp mkdir touch dirname mv head cat sed env date basename tail tr)
+run_min() { HOME="$sb" FM_HOME="$sb/fm2" PATH="$sb/min" HERDR_STATUS="$HERDR_STATUS" PI_LIST="$PI_LIST" bash "$HERE/setup.sh" 2>&1; }
+rm -rf "$sb/fm2"; mkdir -p "$sb/fm2"; git -C "$sb/fm2" init -q
+mk_min "${BASIC[@]}" jq node gh curl
+rm -f "$sb/min/tasks-axi"
+out="$(run_min)"; rc=$?
+if [ "$rc" = 1 ] && grep -q 'MISSING: npm' <<<"$out" && grep -q 'MISSING: tasks-axi (npm install -g failed)' <<<"$out" && [ -e "$sb/fm2/config/crew-dispatch.json" ] && [ -e "$sb/fm2/config/auto-land" ] && grep -qx '.pi-lens.json' "$sb/fm2/.git/info/exclude"; then ok "a missing npm is reported and the rest of the setup still runs"; else bad "missing npm aborted the run (exit $rc)" "$out"; fi
+rm -rf "$sb/fm2"; mkdir -p "$sb/fm2"; git -C "$sb/fm2" init -q
+mk_min "${BASIC[@]}" node npm gh curl
+out="$(run_min)"; rc=$?
+if [ "$rc" = 1 ] && grep -q 'MISSING: jq' <<<"$out" && grep -q 'needs both pi and jq' <<<"$out" && [ ! -e "$sb/fm2/.pi" ] && ! grep -q 'command not found' <<<"$out"; then ok "a missing jq is reported and nothing half-written is left"; else bad "missing jq mishandled (exit $rc)" "$out"; fi
 
 printf '%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" = 0 ]
