@@ -49,7 +49,7 @@ git -C "$sb/fm" init -q
 for t in gh-axi chrome-devtools-axi lavish-axi quota-axi tasks-axi; do printf '#!/bin/sh\necho "%s $*" >>"%s/log"\n' "$t" "$sb" >"$sb/bin/$t"; done
 cat >"$sb/bin/herdr" <<EOF
 #!/bin/sh
-case "\$1 \$2" in "integration status") [ -z "\$HERDR_FAIL" ] || exit 1; printf '%b' "\$HERDR_STATUS" ;; *) echo "herdr \$*" >>"$sb/log" ;; esac
+case "\$1 \$2" in "integration status") [ -z "\$HERDR_FAIL" ] || exit 1; printf '%b' "\$HERDR_STATUS" ;; "integration install") [ -z "\$HERDR_INSTALL_FAIL" ] || { echo boom >&2; exit 1; }; echo "herdr \$*" >>"$sb/log" ;; *) echo "herdr \$*" >>"$sb/log" ;; esac
 EOF
 cat >"$sb/bin/pi" <<EOF
 #!/bin/sh
@@ -123,7 +123,7 @@ mk_min() {
   for t in "$@"; do ln -s "$(command -v "$t")" "$sb/min/$t"; done
   cp "$sb/bin"/* "$sb/min/"
 }
-BASIC=(bash git awk grep cmp cp mkdir touch dirname mv head cat sed env date basename tail tr)
+BASIC=(bash git awk grep cmp cp mkdir touch dirname mv head cat sed env date basename tail tr chmod)
 run_min() { HOME="$sb" FM_HOME="$sb/fm2" PATH="$sb/min" HERDR_STATUS="$HERDR_STATUS" PI_LIST="$PI_LIST" bash "$HERE/setup.sh" 2>&1; }
 rm -rf "$sb/fm2"; mkdir -p "$sb/fm2"; git -C "$sb/fm2" init -q
 mk_min "${BASIC[@]}" jq node gh curl
@@ -134,6 +134,23 @@ rm -rf "$sb/fm2"; mkdir -p "$sb/fm2"; git -C "$sb/fm2" init -q
 mk_min "${BASIC[@]}" node npm gh curl
 out="$(run_min)"; rc=$?
 if [ "$rc" = 1 ] && grep -q 'MISSING: jq' <<<"$out" && grep -q 'needs both pi and jq' <<<"$out" && [ ! -e "$sb/fm2/.pi" ] && ! grep -q 'command not found' <<<"$out"; then ok "a missing jq is reported and nothing half-written is left"; else bad "missing jq mishandled (exit $rc)" "$out"; fi
+
+# A failed Herdr integration install or axi `setup hooks` must not end with OK.
+out="$(HERDR_STATUS='pi: not installed (x)\n' HERDR_INSTALL_FAIL=1 run)"; rc=$?
+if [ "$rc" = 1 ] && grep -q 'MISSING: herdr integration for pi (install failed)' <<<"$out" && grep -qx 'INCOMPLETE' <<<"$out"; then ok "a failed herdr integration install ends INCOMPLETE"; else bad "failed herdr install mishandled (exit $rc)" "$out"; fi
+rm -rf "$sb/fm2"; mkdir -p "$sb/fm2"; git -C "$sb/fm2" init -q
+mk_min "${BASIC[@]}" jq node gh curl
+rm -f "$sb/min/gh-axi"
+printf '#!/bin/sh\n[ "$1 $2" = "install -g" ] || exit 0\nprintf "#!/bin/sh\\nexit 1\\n" >"%s/min/$3"\nchmod +x "%s/min/$3"\n' "$sb" "$sb" >"$sb/min/npm"; chmod +x "$sb/min/npm"
+out="$(run_min)"; rc=$?
+if [ "$rc" = 1 ] && grep -q 'MISSING: gh-axi (setup hooks failed)' <<<"$out" && grep -qx 'INCOMPLETE' <<<"$out"; then ok "a failed axi setup hooks ends INCOMPLETE"; else bad "failed setup hooks mishandled (exit $rc)" "$out"; fi
+
+# A symlinked settings file is updated through the link, not replaced by a plain file.
+printf '{"defaultTools":["-write"]}\n' >"$sb/real-user.json"; rm -f "$sb/.pi/agent/settings.json"; ln -s "$sb/real-user.json" "$sb/.pi/agent/settings.json"
+jq 'del(.packages[] | select(type == "object"))' "$sb/fm/.pi/settings.json" >"$sb/real-proj.json"; rm -f "$sb/fm/.pi/settings.json"; ln -s "$sb/real-proj.json" "$sb/fm/.pi/settings.json"
+HERDR_STATUS='pi: current (v1) (x)\n' run >/dev/null
+if [ -L "$sb/.pi/agent/settings.json" ] && jq -e '.defaultTools == ["-write", "+codemode"]' "$sb/real-user.json" >/dev/null &&
+  [ -L "$sb/fm/.pi/settings.json" ] && jq -e '.packages | any(.[]; type == "object" and .source == "git:github.com/DietrichGebert/ponytail")' "$sb/real-proj.json" >/dev/null; then ok "symlinked settings files keep their link and get the update"; else bad "symlinked settings file was replaced or not updated"; fi
 
 printf '%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" = 0 ]

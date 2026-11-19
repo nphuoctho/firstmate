@@ -44,6 +44,9 @@ for t in git gh node npm jq curl treehouse herdr pi; do
   command -v "$t" >/dev/null 2>&1 || miss "$t ($(hint "$t"))"
 done
 
+# write_through <tmp> <dest>: write through dest's path so a symlinked settings file keeps its link, then drop tmp.
+write_through() { cat "$1" >"$2" && rm -f "$1"; }
+
 # run_or_miss <what> <command...>: a failing command is reported as missing, and the run goes on.
 run_or_miss() { local what="$1"; shift; "$@" || miss "$what (command failed: $*)"; }
 
@@ -53,7 +56,7 @@ for c in "${NPM_CLIS[@]}"; do
       if npm install -g "$c"; then
         # Same follow-up step as Firstmate's own install hint (bin/fm-bootstrap.sh).
         case "$c" in
-          gh-axi | chrome-devtools-axi | lavish-axi) "$c" setup hooks || say "warning: $c setup hooks failed" ;;
+          gh-axi | chrome-devtools-axi | lavish-axi) "$c" setup hooks || miss "$c (setup hooks failed)" ;;
         esac
       else
         miss "$c (npm install -g failed)"
@@ -95,7 +98,7 @@ if command -v pi >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
       mkdir -p "$PI_AGENT_DIR"
       [ -s "$us" ] || printf '{}\n' >"$us"
       if jq '.defaultTools = ((.defaultTools // []) + ["+codemode"])' "$us" >"$us.tmp"; then
-        mv "$us.tmp" "$us"
+        write_through "$us.tmp" "$us" || miss "pi codemode (could not update $us)"
       else
         rm -f "$us.tmp"; miss "pi codemode (could not update $us)"
       fi
@@ -120,7 +123,7 @@ if command -v pi >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
           mkdir -p "$HOME_DIR/.pi"
           [ -s "$settings" ] || printf '{}\n' >"$settings"
           if jq --argjson e "$entry" --arg p "$p" '.packages = [(.packages // [])[] | select((if type == "object" then .source else . end) != $p)] + [$e]' "$settings" >"$settings.tmp"; then
-            mv "$settings.tmp" "$settings"
+            write_through "$settings.tmp" "$settings" || miss "primary-session pi package $p (could not update $settings)"
           else
             rm -f "$settings.tmp"; miss "primary-session pi package $p (could not update $settings)"
           fi
@@ -139,7 +142,7 @@ if command -v herdr >/dev/null 2>&1 && command -v pi >/dev/null 2>&1; then
     if ! grep -q "^pi: current" <<<"$hstatus"; then
       if act "herdr integration for pi"; then
         mkdir -p "$PI_AGENT_DIR/extensions"
-        herdr integration install pi || say "warning: herdr integration install pi failed"
+        herdr integration install pi || miss "herdr integration for pi (install failed)"
       fi
     fi
   else
