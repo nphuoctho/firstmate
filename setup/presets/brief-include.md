@@ -6,4 +6,4 @@
 
 ## Check before you report done
 
-Before you report done, run the project's own type checker, linter, and vet commands if it has them (for example `npm run typecheck`, `npx tsc --noEmit`, `npm run lint`, `go vet ./...`, `cargo clippy`, `ruff check`), and fix everything they report. Tests passing is not enough on its own.
+Before you report done, find the checks this project already defines for itself (type checking, linting, static analysis, formatting checks; look at its scripts, task runner, CI workflow and contributor docs) and run them, then fix everything they report. Tests passing is not enough on its own. Do not install new tools to do this; if the project defines no such checks, say so in your report.

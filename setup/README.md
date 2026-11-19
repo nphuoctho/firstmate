@@ -17,6 +17,8 @@ Install these first.
 The script reports any that are missing:
 `git`, `gh`, `node`, `npm`, `jq`, `curl`, `treehouse`, `herdr` (https://herdr.dev) and `pi` (https://pi.dev).
 Without `pi` or `jq`, the Pi package and settings steps are skipped with a message.
+`node` and `npm` are needed only because the axi CLIs and Pi packages install through them.
+The setup assumes no project language or stack, and the presets name none.
 
 ## What the standard contains
 
@@ -79,7 +81,7 @@ When it differs from the preset, setup prints a `diff` command so you can compar
 
 ### Git rules
 
-`brief-include.md` tells every worker to follow:
+`brief-include.md` tells every worker to follow these rules, and to run whatever checks the project itself defines before reporting done:
 - [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages;
 - [Conventional Branch](https://conventionalbranch.org/) for branch names (Firstmate picks the name);
 - pull request titles in the Conventional Commits form, as described at https://flank.github.io/flank/pr_titles/, written in plain English.
