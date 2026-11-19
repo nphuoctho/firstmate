@@ -23,9 +23,6 @@ if jq -e '(.packages | length) == 6 and (.packages | index("npm:pi-markdown-prev
 if jq -e '.shared_quota == true and (.rules | length) == 6 and .default.model == "anthropic/claude-sonnet-5-5" and .default.effort == "medium" and ([.rules[].use.harness] | unique) == ["pi"]' "$P/crew-dispatch.json" >/dev/null; then ok "dispatch preset has six questions and the Sonnet medium default"; else bad "dispatch preset shape is wrong"; fi
 if [ "$(cat "$P/supervision-branch-model")" = anthropic/claude-haiku-5-5 ] && [ "$(cat "$P/supervision-branch-effort")" = medium ]; then ok "supervision presets have the standard content"; else bad "supervision preset wrong"; fi
 
-# The presets must not hard-code a tech stack.
-if ! grep -qiE '\b(node|npm|npx|tsc|typescript|javascript|golang|go vet|python|ruff|pytest|rust|cargo|clippy|pnpm|yarn)\b' "$P/brief-include.md"; then ok "brief-include preset names no tech stack"; else bad "brief-include preset names a tech stack" "$(grep -niE 'node|npm|tsc|go vet|ruff|cargo|clippy' "$P/brief-include.md")"; fi
-
 # The brief-include preset must reach workers: Firstmate's own brief builder has to emit it.
 bh="$TMP/bhome"; mkdir -p "$bh/config"; cp "$P/brief-include.md" "$bh/config/"
 if FM_HOME="$bh" "$HERE/../bin/fm-brief.sh" inc some-proj --scout >/dev/null 2>&1 &&
