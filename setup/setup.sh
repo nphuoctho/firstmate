@@ -108,7 +108,7 @@ if command -v pi >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
   # A plain entry counts as present when settings.json lists that exact pinned source.
   # An object entry (a package with filters) counts as present when settings.json has an object for that source.
   settings="$HOME_DIR/.pi/settings.json"
-  have="$(jq -r '(.packages // [])[] | if type == "object" then empty else . end' "$settings" 2>/dev/null || true)"
+  have="$(jq -r '(.packages // [])[] | if type == "object" then .source else . end' "$settings" 2>/dev/null || true)"
   while IFS= read -r entry; do
     if [ "$(jq -r 'type' <<<"$entry")" = string ]; then
       p="$(jq -r '.' <<<"$entry")"
