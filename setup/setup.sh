@@ -162,7 +162,7 @@ seed "$PRESETS/crew-dispatch.json" "$CFG/crew-dispatch.json" config/crew-dispatc
 seed "$PRESETS/brief-include.md" "$CFG/brief-include.md" config/brief-include.md
 seed "$PRESETS/supervision-branch-model" "$CFG/supervision-branch-model" config/supervision-branch-model
 seed "$PRESETS/supervision-branch-effort" "$CFG/supervision-branch-effort" config/supervision-branch-effort
-seed "$PRESETS/pi-lens.json" "$HOME_DIR/.pi-lens.json" .pi-lens.json
+seed "$PRESETS/pi-lens-config.json" "$HOME_DIR/.pi-lens.json" .pi-lens.json
 # Firstmate options that are switched on by the file existing.
 for f in park-on-review auto-land pr-register-scan; do
   [ -e "$CFG/$f" ] || { if act "config/$f"; then mkdir -p "$CFG"; touch "$CFG/$f"; fi; }
