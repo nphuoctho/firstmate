@@ -15,9 +15,9 @@ A step that fails is reported as missing and the rest of the setup still runs, s
 
 Install these first.
 The script reports any that are missing:
-`git`, `gh`, `node`, `npm`, `jq`, `curl`, `treehouse`, `herdr` (https://herdr.dev) and `pi` (https://pi.dev).
+`git`, `gh`, `node`, `npm`, `jq`, `curl`, `treehouse` (install with `curl -fsSL https://kunchenguid.github.io/treehouse/install.sh | sh`), `herdr` (https://herdr.dev) and `pi` (https://pi.dev).
 Without `pi` or `jq`, the Pi package and settings steps are skipped with a message.
-`node` and `npm` are needed only because the axi CLIs and Pi packages install through them.
+`node` and `npm` are needed only because the axi command-line tools (small programs the agent runs to reach GitHub, a browser, quota, review boards and the backlog; listed below) and the Pi packages install through them.
 The setup assumes no project language or stack, and the presets name none.
 
 ## What the standard contains
@@ -46,7 +46,7 @@ These are installed for your user, so they load in every Pi session (the primary
 | `pi-web-access` | web search and page fetch |
 | `git:github.com/DietrichGebert/ponytail` | Ponytail, the small-change coding style |
 
-Codemode is also on for every session.
+Codemode (a Pi feature that lets the agent run a short script which calls several tools in one go) is also on for every session.
 Setup adds `"+codemode"` to `defaultTools` in your user-level Pi settings (`~/.pi/agent/settings.json`) and keeps every other key.
 
 These are installed for the primary Firstmate session only.
@@ -103,6 +103,8 @@ When torn between two answers it picks the more careful one.
 
 ## Changing the standard
 
+- Setup re-creates a preset or option file that is missing or empty, so a file you deleted on purpose comes back on the next run. Examples: deleting `config/supervision-branch-model` ("Follow main" in `/supervision-model`) or deleting `config/park-on-review` or `config/auto-land` (which switches that option off). To keep such a choice, make it again after each setup run, for example pick "Follow main" again in `/supervision-model` or delete the option file again.
+
 - Change a preset in `presets/` to change the standard for new setups.
   Homes that already have the file keep theirs, so edit their `config/` file too.
 - Package versions live in `presets/pi-primary-settings.json`.
@@ -111,6 +113,14 @@ When torn between two answers it picks the more careful one.
   Setup prints a note, and you add `+codemode` yourself.
 
 ## Checks
+
+Before changing setup, run these two checks (nothing runs them automatically):
+
+```sh
+bash setup/tests/setup.test.sh
+bin/fm-lint.sh setup/setup.sh setup/tests/setup.test.sh
+```
+
 
 `setup/tests/setup.test.sh` needs no network and installs nothing.
 It checks that the presets are valid JSON, that the dispatch preset passes Firstmate's own validation, and that the brief builder emits `brief-include.md`.
