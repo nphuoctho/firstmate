@@ -326,14 +326,6 @@
       "audience": "public-product"
     },
     {
-      "path": "ai-native/README.md",
-      "audience": "operator-current"
-    },
-    {
-      "path": "ai-native/rules/git-conventions.md",
-      "audience": "operator-current"
-    },
-    {
       "path": "docs/agent-control.md",
       "audience": "maintainer-architecture"
     },
@@ -656,6 +648,14 @@
     {
       "path": "docs/zellij-backend.md",
       "audience": "operator-current"
+    },
+    {
+      "path": "setup/README.md",
+      "audience": "operator-current"
+    },
+    {
+      "path": "setup/presets/brief-include.md",
+      "audience": "operator-example"
     },
     {
       "path": "skills/stow/SKILL.md",

@@ -1,0 +1,71 @@
+{
+  "shared_quota": true,
+  "rules": [
+    {
+      "when": "Ask these questions in order and stop at the first yes; when torn between two answers, pick the more careful one, because doing a little more carefully is cheaper than doing it again. Question 1: is the job to look over work someone else just finished? Checking code or a pull request for mistakes before it is merged.",
+      "use": {
+        "harness": "pi",
+        "model": "anthropic/claude-opus-5-5",
+        "effort": "high",
+        "provider": "claude"
+      },
+      "why": "A review is the last chance to catch a mistake, so it gets the strongest model thinking carefully."
+    },
+    {
+      "when": "Question 2: is the job to find something out rather than to build something? The result is an answer or a written report, not code: understanding a problem, comparing options, measuring, exploring.",
+      "use": {
+        "harness": "pi",
+        "model": "anthropic/claude-sonnet-5-5",
+        "effort": "high",
+        "provider": "claude"
+      },
+      "why": "Finding out needs careful thinking, but not the strongest model."
+    },
+    {
+      "when": "Question 3: is it still unclear how to do the job? There are several ways to do it to weigh up, or it touches many parts of the system, so someone has to draw the route first. The result is a plan that another worker will follow.",
+      "use": {
+        "harness": "pi",
+        "model": "anthropic/claude-opus-5-5",
+        "effort": "high",
+        "provider": "claude"
+      },
+      "why": "A wrong plan means redoing the whole job, so the strongest model plans and a Sonnet worker builds from the plan."
+    },
+    {
+      "when": "Question 4: if this is done wrong, would the mistake be hard to notice, hard to undo, or cause real harm? Places where a small slip can lose something important or affect other people. Every project has its own such places; judge by the consequences, not by the name of the feature.",
+      "use": {
+        "harness": "pi",
+        "model": "anthropic/claude-sonnet-5-5",
+        "effort": "high",
+        "provider": "claude"
+      },
+      "why": "Mistakes here are expensive, so the worker thinks harder before changing anything."
+    },
+    {
+      "when": "Question 5: does the job follow a known pattern and need almost no judgment? Anyone careful would get it right without weighing anything up.",
+      "use": {
+        "harness": "pi",
+        "model": "anthropic/claude-haiku-5-5",
+        "effort": "medium",
+        "provider": "claude"
+      },
+      "why": "Simple, pattern-following work is fastest and cheapest on Haiku, which still reads the surrounding code first."
+    },
+    {
+      "when": "Question 6, everything else: it is already clear what to do and it only needs to be done right and cleanly, including building from a finished plan when the work is not risky.",
+      "use": {
+        "harness": "pi",
+        "model": "anthropic/claude-sonnet-5-5",
+        "effort": "medium",
+        "provider": "claude"
+      },
+      "why": "Clear, ordinary building work is Sonnet's everyday job: good quality at a sensible speed and cost."
+    }
+  ],
+  "default": {
+    "harness": "pi",
+    "model": "anthropic/claude-sonnet-5-5",
+    "effort": "medium",
+    "provider": "claude"
+  }
+}
