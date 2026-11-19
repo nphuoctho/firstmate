@@ -104,7 +104,6 @@ When torn between two answers it picks the more careful one.
 ## Changing the standard
 
 - Setup re-creates a preset or option file that is missing or empty, so a file you deleted on purpose comes back on the next run. Examples: deleting `config/supervision-branch-model` ("Follow main" in `/supervision-model`) or deleting `config/park-on-review` or `config/auto-land` (which switches that option off). To keep such a choice, make it again after each setup run, for example pick "Follow main" again in `/supervision-model` or delete the option file again.
-
 - Change a preset in `presets/` to change the standard for new setups.
   Homes that already have the file keep theirs, so edit their `config/` file too.
 - Package versions live in `presets/pi-primary-settings.json`.
@@ -120,7 +119,6 @@ Before changing setup, run these two checks (nothing runs them automatically):
 bash setup/tests/setup.test.sh
 bin/fm-lint.sh setup/setup.sh setup/tests/setup.test.sh
 ```
-
 
 `setup/tests/setup.test.sh` needs no network and installs nothing.
 It checks that the presets are valid JSON, that the dispatch preset passes Firstmate's own validation, and that the brief builder emits `brief-include.md`.
