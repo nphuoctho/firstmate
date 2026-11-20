@@ -41,8 +41,26 @@ hint() {
     *) printf 'install it with your OS package manager' ;;
   esac
 }
+BACKEND="${FM_BACKEND:-$(head -n1 "$CFG/backend" 2>/dev/null || true)}"
+# The preset holds the rules (which Claude model and effort for which job); the worker harness is the home's choice:
+# a concrete config/crew-harness first, then claude on t3code (T3 Code runs only claude/codex workers), else the preset's pi.
+WORKER="$(head -n1 "$CFG/crew-harness" 2>/dev/null || true)"
+[ "$WORKER" != default ] || WORKER=""
+[ -n "$WORKER" ] || { [ "$BACKEND" != t3code ] || WORKER=claude; }
+WORKER="${WORKER:-pi}"
+# Runtime tools follow the home: herdr only for the herdr backend, pi only for pi/pi-signed workers.
+# Other missing runtime tools are noted, not failed.
+needed() {
+  case "$1" in
+    herdr) [ "$BACKEND" = herdr ] ;;
+    pi) [ "$WORKER" = pi ] || [ "$WORKER" = pi-signed ] ;;
+    *) return 0 ;;
+  esac
+}
 for t in git gh node npm jq curl treehouse herdr pi; do
-  command -v "$t" >/dev/null 2>&1 || miss "$t ($(hint "$t"))"
+  command -v "$t" >/dev/null 2>&1 && continue
+  if needed "$t"; then miss "$t ($(hint "$t"))"
+  else say "note: $t is not installed; this home does not need it (backend '${BACKEND:-default}', workers '$WORKER'; $(hint "$t"))"; fi
 done
 
 # write_through <tmp> <dest>: write through dest's path so a symlinked settings file keeps its link, then drop tmp.
@@ -135,6 +153,7 @@ if command -v pi >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
   while IFS= read -r p; do
     [ -n "$p" ] || continue
     if act "remove home-level $p (pi-lens is no longer used, in $settings)"; then
+      # shellcheck disable=SC2016 # the inner bash, not this shell, expands $1 and $2.
       run_or_miss "remove home-level $p" bash -c 'cd "$1" && pi remove -l -a "$2"' _ "$HOME_DIR" "$p"
     fi
   done < <(grep -E '^npm:pi-lens(@.*)?$' <<<"$have" || true)
@@ -165,7 +184,25 @@ seed() {
     say "note: $3 differs from the preset and is left alone. Compare: diff '$2' '$1'"
   fi
 }
-seed "$PRESETS/crew-dispatch.json" "$CFG/crew-dispatch.json" config/crew-dispatch.json
+dispatch="$PRESETS/crew-dispatch.json"
+case "$WORKER" in
+  pi) ;;
+  pi-signed | omp | claude) # pi-signed and omp take the preset's provider/id names; claude takes bare names
+    dispatch="$(mktemp)"; trap 'rm -f "$dispatch"' EXIT
+    # Without jq, or if it fails, seed nothing rather than the pi preset or an empty file.
+    command -v jq >/dev/null 2>&1 &&
+      jq --arg h "$WORKER" '(.. | objects | select(has("harness"))) |= (.harness = $h | if $h == "claude" then .model |= sub("^anthropic/"; "") else . end)' \
+        "$PRESETS/crew-dispatch.json" >"$dispatch" || dispatch="" ;;
+  *) dispatch="" ;; # the preset's Claude models do not fit this harness
+esac
+if [ -n "$dispatch" ]; then
+  seed "$dispatch" "$CFG/crew-dispatch.json" config/crew-dispatch.json
+elif [ ! -s "$CFG/crew-dispatch.json" ]; then
+  case "$WORKER" in
+    pi-signed | omp | claude) miss "config/crew-dispatch.json (needs jq to adapt the preset to the '$WORKER' harness)" ;;
+    *) say "note: config/crew-dispatch.json not seeded: its rules use Claude models and the worker harness is '$WORKER'. Write it by hand (docs/configuration.md \"Crew dispatch profiles\")." ;;
+  esac
+fi
 seed "$PRESETS/brief-include.md" "$CFG/brief-include.md" config/brief-include.md
 seed "$PRESETS/supervision-branch-model" "$CFG/supervision-branch-model" config/supervision-branch-model
 seed "$PRESETS/supervision-branch-effort" "$CFG/supervision-branch-effort" config/supervision-branch-effort

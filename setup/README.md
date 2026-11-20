@@ -8,6 +8,7 @@ setup/setup.sh           # install and seed what is missing
 ```
 
 Any other argument prints the usage and does nothing.
+To have an AI agent do the whole setup, paste the prompt in [run.md](run.md).
 Run it whenever you set up a new machine or a new Firstmate home.
 It is safe to run again, because it only fills gaps.
 A step that fails is reported as missing and the rest of the setup still runs, so the run ends with `INCOMPLETE` and exit code 1.
@@ -15,7 +16,15 @@ A step that fails is reported as missing and the rest of the setup still runs, s
 
 Install these first.
 The script reports any that are missing:
-`git`, `gh`, `node`, `npm`, `jq`, `curl`, `treehouse` (install with `curl -fsSL https://kunchenguid.github.io/treehouse/install.sh | sh`), `herdr` (https://herdr.dev) and `pi` (https://pi.dev).
+`git`, `gh`, `node`, `npm`, `jq`, `curl` and `treehouse` (install with `curl -fsSL https://kunchenguid.github.io/treehouse/install.sh | sh`).
+
+The setup picks no runtime backend.
+It reads the home's backend (`FM_BACKEND`, else the first line of `config/backend`) and worker harness (see "Worker model choice") and asks only for what they need:
+
+- `herdr` (https://herdr.dev) when the backend is `herdr`;
+- `pi` (https://pi.dev) when workers run on `pi` or `pi-signed`.
+
+A runtime tool the backend does not need is only noted when missing.
 Without `pi` or `jq`, the Pi package and settings steps are skipped with a message.
 `node` and `npm` are needed only because the axi command-line tools (small programs the agent runs to reach GitHub, a browser, quota, review boards and the backlog; listed below) and the Pi packages install through them.
 The setup assumes no project language or stack, and the presets name none.
@@ -76,12 +85,15 @@ When it differs from the preset, setup prints a `diff` command so you can compar
 | --- | --- |
 | `crew-dispatch.json` | picks the model for each worker (see below) |
 | `brief-include.md` | git rules and a check-before-done step added to every worker's instructions |
-| `supervision-branch-model`, `supervision-branch-effort` | Haiku 5.5 at `medium` for Firstmate's background supervision |
+| `supervision-branch-model`, `supervision-branch-effort` | Haiku 5.5 at `medium` for Firstmate's background supervision; read only when the primary session runs on Pi |
 | `park-on-review`, `auto-land`, `pr-register-scan` | empty files; each one switches that Firstmate option on |
 
 ### Git rules
 
-`brief-include.md` tells every worker to follow these rules, and to run whatever checks the project itself defines before reporting done:
+`brief-include.md` tells every worker to follow these rules.
+On a `no-mistakes` project it tells the worker to leave the checks to the pipeline, so they do not run twice.
+On a `direct-PR` or `local-only` project it tells the worker to run whatever checks the project itself defines before reporting done.
+The git rules are:
 - [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages;
 - [Conventional Branch 1.1.0](https://conventionalbranch.org/) for branch names (Firstmate picks the name);
 - pull request titles in the Conventional Commits form, without body or footers, written in plain English.
@@ -92,7 +104,19 @@ The include summarizes these rules, so workers do not fetch the linked pages.
 
 ### Worker model choice
 
-All workers run through Pi with Claude on shared quota.
+All workers run Claude models on shared quota.
+The preset holds the rules; the worker harness is the home's choice, so setup seeds the rules on the harness this home uses:
+
+| The home has | Harness in the seeded file | Model names |
+| --- | --- | --- |
+| `config/crew-harness` set to `pi`, `pi-signed` or `omp` | that harness | `anthropic/claude-...` |
+| `config/crew-harness` set to `claude` | `claude` | `claude-...` |
+| no `config/crew-harness` (or `default`) and backend `t3code` | `claude` (T3 Code runs only Claude and Codex workers) | `claude-...` |
+| neither | `pi` | `anthropic/claude-...` |
+
+Any other `config/crew-harness` (for example `codex`) cannot run the preset's Claude models, so setup seeds nothing and says so; write `config/crew-dispatch.json` by hand.
+Set `config/crew-harness` before the first setup run: an existing `crew-dispatch.json` is never overwritten.
+
 Firstmate asks six questions in order and stops at the first yes.
 When torn between two answers it picks the more careful one.
 
@@ -104,6 +128,11 @@ When torn between two answers it picks the more careful one.
 | 4. Would a mistake be hard to notice, hard to undo, or cause real harm? | Sonnet 5.5, high |
 | 5. Does it follow a known pattern and need almost no judgment? | Haiku 5.5, medium |
 | 6. Everything else | Sonnet 5.5, medium |
+
+## Adding projects
+
+Register each project with `[no-mistakes branch=feature/]` (or another mode) and run `no-mistakes init` and `no-mistakes doctor` in its clone.
+No per-project no-mistakes configuration is needed: its agents work out how to lint and test the project, and nothing is added to the project repo.
 
 ## Changing the standard
 
@@ -125,7 +154,7 @@ bin/fm-lint.sh setup/setup.sh setup/tests/setup.test.sh
 ```
 
 `setup/tests/setup.test.sh` needs no network and installs nothing.
-It checks that the presets are valid JSON, that the dispatch preset passes Firstmate's own validation, and that the brief builder emits `brief-include.md`.
+It checks that the presets are valid JSON, that the dispatch preset passes Firstmate's own validation (also as seeded for T3 Code, omp and a harness it does not fit), and that the brief builder emits `brief-include.md`.
 It also checks that `--check` and a real run behave as described, including with `npm` or `jq` missing.
 It uses a scratch home with stand-in `pi`, `herdr` and installers.
 

@@ -82,7 +82,7 @@ for want in 'pi package npm:cc-safety-net' 'pi package git:github.com/DietrichGe
 done
 if grep -q 'remove user-level npm:pi-markdown-preview' <<<"$out"; then gaps=1; bad "a project-level package was treated as user-level"; fi
 [ "$gaps" = 0 ] && ok "--check reports every gap"
-if [ "$before" = "$(snap)" ] && [ -z "$(jq -r '.packages[]' "$sb/fm/.pi/settings.json" | grep -v pi-lens)" ] && [ ! -e "$sb/.pi/agent/settings.json" ] && ! grep -Eq 'install|remove' "$sb/log" 2>/dev/null; then ok "--check writes nothing"; else bad "--check changed the sandbox"; fi
+if [ "$before" = "$(snap)" ] && ! jq -r '.packages[]' "$sb/fm/.pi/settings.json" | grep -qv pi-lens && [ ! -e "$sb/.pi/agent/settings.json" ] && ! grep -Eq 'install|remove' "$sb/log" 2>/dev/null; then ok "--check writes nothing"; else bad "--check changed the sandbox"; fi
 
 # A real run applies everything. A changed file survives with a drift note, and a second run changes nothing.
 mkdir -p "$sb/fm/config" "$sb/.pi/agent"; printf 'custom-model\n' >"$sb/fm/config/supervision-branch-model"
@@ -105,6 +105,34 @@ PI_LIST='User packages:\n  npm:pi-web-access\n    /x\n  npm:cc-safety-net\n    /
 HERDR_STATUS='pi: current (v1) (x)\n'
 out="$(run)"
 if [ "$(snap)" = "$before" ] && ! grep -Eq 'install' "$sb/log"; then ok "a second run changes nothing"; else bad "second run was not idempotent" "$out"; fi
+
+# A t3code home gets the dispatch rules on the claude harness, and Firstmate's validation accepts them.
+rm -rf "$sb/fm3"; mkdir -p "$sb/fm3/config"; git -C "$sb/fm3" init -q; echo t3code >"$sb/fm3/config/backend"
+HOME="$sb" FM_HOME="$sb/fm3" PATH="$sb/bin:$PATH" HERDR_STATUS="$HERDR_STATUS" PI_LIST="$PI_LIST" "$HERE/setup.sh" >/dev/null 2>&1 || true
+d3="$sb/fm3/config/crew-dispatch.json"
+out="$(cd "$HERE/.." && FM_HOME="$sb/fm3" FM_BOOTSTRAP_DETECT_ONLY=1 timeout 120 bin/fm-bootstrap.sh 2>&1)"
+if jq -e '([.. | objects | select(has("harness")) | .harness] | unique) == ["claude"] and .default.model == "claude-sonnet-5-5" and (.rules | length) == 6' "$d3" >/dev/null &&
+  ! grep -q 'CREW_DISPATCH:' <<<"$out"; then ok "a t3code home gets claude-harness dispatch rules that pass validation"; else bad "t3code dispatch seeding wrong" "$(cat "$d3" 2>/dev/null) $(grep CREW_DISPATCH <<<"$out")"; fi
+
+# config/crew-harness wins over the backend: omp keeps provider/id names, a harness without Claude models is not seeded.
+rm -rf "$sb/fm4"; mkdir -p "$sb/fm4/config"; git -C "$sb/fm4" init -q; echo omp >"$sb/fm4/config/crew-harness"
+HOME="$sb" FM_HOME="$sb/fm4" PATH="$sb/bin:$PATH" HERDR_STATUS="$HERDR_STATUS" PI_LIST="$PI_LIST" "$HERE/setup.sh" >/dev/null 2>&1 || true
+if jq -e '([.. | objects | select(has("harness")) | .harness] | unique) == ["omp"] and .default.model == "anthropic/claude-sonnet-5-5"' "$sb/fm4/config/crew-dispatch.json" >/dev/null; then ok "an omp crew harness gets omp dispatch rules"; else bad "omp dispatch seeding wrong" "$(cat "$sb/fm4/config/crew-dispatch.json" 2>/dev/null)"; fi
+rm -rf "$sb/fm5"; mkdir -p "$sb/fm5/config"; git -C "$sb/fm5" init -q; echo codex >"$sb/fm5/config/crew-harness"
+out="$(HOME="$sb" FM_HOME="$sb/fm5" PATH="$sb/bin:$PATH" HERDR_STATUS="$HERDR_STATUS" PI_LIST="$PI_LIST" "$HERE/setup.sh" 2>&1)" || true
+if [ ! -e "$sb/fm5/config/crew-dispatch.json" ] && grep -q "worker harness is 'codex'" <<<"$out"; then ok "a codex crew harness is told to write its own dispatch rules"; else bad "codex dispatch handling wrong" "$out"; fi
+
+# Runtime tools follow the backend: on t3code a missing pi or herdr is only noted; on herdr a missing herdr fails.
+mk_bin_without() { rm -rf "$sb/nob"; mkdir -p "$sb/nob"; cp "$sb/bin"/* "$sb/nob/"; for t in "$@"; do rm -f "$sb/nob/$t"; done
+  for t in git gh node npm jq curl bash awk grep cmp cp mkdir touch dirname mv head cat sed env date basename tail tr chmod mktemp rm find sort xargs cksum; do
+    p="$(command -v "$t")" && ln -sf "$p" "$sb/nob/$t"; done; }
+mk_bin_without pi herdr
+out="$(HOME="$sb" FM_HOME="$sb/fm3" PATH="$sb/nob" HERDR_STATUS="$HERDR_STATUS" PI_LIST="$PI_LIST" bash "$HERE/setup.sh" --check 2>&1)"
+if ! grep -Eq 'MISSING: (pi|herdr) \(' <<<"$out" && grep -q "note: pi is not installed; this home does not need it (backend 't3code', workers 'claude'" <<<"$out"; then ok "a t3code home only notes a missing pi or herdr"; else bad "t3code tool check wrong" "$out"; fi
+out="$(HOME="$sb" FM_HOME="$sb/fm3" FM_BACKEND=herdr PATH="$sb/nob" HERDR_STATUS="$HERDR_STATUS" PI_LIST="$PI_LIST" bash "$HERE/setup.sh" --check 2>&1)"
+if grep -q 'MISSING: herdr (' <<<"$out" && grep -q 'MISSING: pi (' <<<"$out"; then ok "a herdr home requires herdr and pi"; else bad "herdr tool check wrong" "$out"; fi
+out="$(HOME="$sb" FM_HOME="$sb/fm4" PATH="$sb/nob" HERDR_STATUS="$HERDR_STATUS" PI_LIST="$PI_LIST" bash "$HERE/setup.sh" --check 2>&1)"
+if ! grep -q 'MISSING: pi (' <<<"$out" && grep -q "workers 'omp'" <<<"$out"; then ok "an omp home does not require pi"; else bad "omp tool check wrong" "$out"; fi
 
 # Herdr status failing skips the integration check rather than reporting it missing.
 out="$(HERDR_FAIL=1 run --check)"
