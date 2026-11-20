@@ -86,6 +86,8 @@ When it differs from the preset, setup prints a `diff` command so you can compar
 - [Conventional Branch 1.1.0](https://conventionalbranch.org/) for branch names (Firstmate picks the name);
 - pull request titles in the Conventional Commits form, without body or footers, written in plain English.
 
+Firstmate's default ship branch prefix is `fm/`, which is not a Conventional Branch type, so register each project with `branch=feature/` (the annotation `bin/fm-project-mode.sh --branch-prefix` reads) for branch names to conform.
+
 The include summarizes these rules, so workers do not fetch the linked pages.
 
 ### Worker model choice
