@@ -74,6 +74,9 @@ Firstmate already chose this task's branch name; keep it. It follows `<type>/<de
 - Every PR that is not a draft needs a title in this form.
 - Write the title and description in clear, plain English that a newcomer can follow: what changed, why, and how it was checked.
 
-## Check before you report done
+## Checks before you report done
 
-Before you report done, find the checks this project already defines for itself (type checking, linting, static analysis, formatting checks; look at its scripts, task runner, CI workflow and contributor docs) and run them, then fix everything they report. Tests passing is not enough on its own. Do not install new tools to do this; if the project defines no such checks, say so in your report.
+How you check depends on the delivery mode in your instructions.
+
+- **no-mistakes:** do not run the project's lint, type, format or test checks yourself. The no-mistakes pipeline runs them and fixes what it can. Follow the Definition of done above for when to report done.
+- **direct-PR or local-only:** before you report done, find the checks this project already defines for itself (type checking, linting, static analysis, formatting checks; look at its scripts, task runner, CI workflow and contributor docs) and run them, then fix everything they report. Tests passing is not enough on its own. Do not install new tools to do this; if the project defines no such checks, say so in your report.
