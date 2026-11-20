@@ -8,6 +8,7 @@ setup/setup.sh           # install and seed what is missing
 ```
 
 Any other argument prints the usage and does nothing.
+To have an AI agent do the whole setup, paste the prompt in [run.md](run.md).
 Run it whenever you set up a new machine or a new Firstmate home.
 It is safe to run again, because it only fills gaps.
 A step that fails is reported as missing and the rest of the setup still runs, so the run ends with `INCOMPLETE` and exit code 1.
