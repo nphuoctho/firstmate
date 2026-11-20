@@ -162,7 +162,6 @@ seed "$PRESETS/crew-dispatch.json" "$CFG/crew-dispatch.json" config/crew-dispatc
 seed "$PRESETS/brief-include.md" "$CFG/brief-include.md" config/brief-include.md
 seed "$PRESETS/supervision-branch-model" "$CFG/supervision-branch-model" config/supervision-branch-model
 seed "$PRESETS/supervision-branch-effort" "$CFG/supervision-branch-effort" config/supervision-branch-effort
-seed "$PRESETS/pi-lens-config.json" "$HOME_DIR/.pi-lens.json" .pi-lens.json
 # Firstmate options that are switched on by the file existing.
 for f in park-on-review auto-land pr-register-scan; do
   [ -e "$CFG/$f" ] || { if act "config/$f"; then mkdir -p "$CFG"; touch "$CFG/$f"; fi; }
@@ -172,7 +171,7 @@ done
 if excl="$(git -C "$HOME_DIR" rev-parse --git-path info/exclude 2>/dev/null)" &&
   [ "$(git -C "$HOME_DIR" rev-parse --show-toplevel 2>/dev/null)" = "$(cd "$HOME_DIR" && pwd -P)" ]; then
   case "$excl" in /*) ;; *) excl="$HOME_DIR/$excl" ;; esac
-  for pat in .pi/settings.json .pi/npm/ .pi/git/ .pi-lens.json; do
+  for pat in .pi/settings.json .pi/npm/ .pi/git/; do
     grep -qxF "$pat" "$excl" 2>/dev/null || {
       if act "git exclude entry $pat"; then mkdir -p "$(dirname "$excl")"; printf '%s\n' "$pat" >>"$excl"; fi
     }

@@ -2,7 +2,6 @@
   "packages": [
     "npm:pi-markdown-preview",
     "npm:pi-context-view@0.8.4",
-    "npm:pi-lens@4.5.1",
     "npm:@juicesharp/rpiv-todo@2.15.0",
     "git:github.com/nphuoctho/pi-usage-bars@e595440",
     {

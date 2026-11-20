@@ -17,9 +17,8 @@ for t in jq git; do command -v "$t" >/dev/null 2>&1 || { echo "missing $t"; exit
 
 # Presets.
 for f in "$P"/*.json; do if jq -e . "$f" >/dev/null 2>&1; then ok "preset $(basename "$f") is valid JSON"; else bad "preset $(basename "$f") is not valid JSON"; fi; done
-if jq -e '(.packages | length) == 6 and (.packages | index("npm:pi-markdown-preview")) != null and (.packages | index("npm:pi-lens@4.5.1")) != null and (.packages | index("npm:pi-context-view@0.8.4")) != null and (.packages | index("npm:@juicesharp/rpiv-todo@2.15.0")) != null and (.packages | index("git:github.com/nphuoctho/pi-usage-bars@e595440")) != null' "$P/pi-primary-settings.json" >/dev/null &&
-  jq -e '(has("defaultTools") | not) and (.packages[5] == {source: "git:github.com/DietrichGebert/ponytail", autoload: false, extensions: ["!**"], skills: ["!**"]})' "$P/pi-primary-settings.json" >/dev/null &&
-  jq -e '.format.enabled == false and .autofix.enabled == false' "$P/pi-lens-config.json" >/dev/null; then ok "primary-session presets pin the packages, turn Ponytail off and pi-lens formatting off"; else bad "primary-session presets are wrong"; fi
+if jq -e '(.packages | length) == 5 and (.packages | index("npm:pi-markdown-preview")) != null and (.packages | index("npm:pi-lens@4.5.1")) == null and (.packages | index("npm:pi-context-view@0.8.4")) != null and (.packages | index("npm:@juicesharp/rpiv-todo@2.15.0")) != null and (.packages | index("git:github.com/nphuoctho/pi-usage-bars@e595440")) != null' "$P/pi-primary-settings.json" >/dev/null &&
+  jq -e '(has("defaultTools") | not) and (.packages[4] == {source: "git:github.com/DietrichGebert/ponytail", autoload: false, extensions: ["!**"], skills: ["!**"]})' "$P/pi-primary-settings.json" >/dev/null; then ok "primary-session presets pin the packages and turn Ponytail off"; else bad "primary-session presets are wrong"; fi
 if jq -e '.shared_quota == true and (.rules | length) == 6 and .default.model == "anthropic/claude-sonnet-5-5" and .default.effort == "medium" and ([.rules[].use.harness] | unique) == ["pi"]' "$P/crew-dispatch.json" >/dev/null; then ok "dispatch preset has six questions and the Sonnet medium default"; else bad "dispatch preset shape is wrong"; fi
 if [ "$(cat "$P/supervision-branch-model")" = anthropic/claude-haiku-5-5 ] && [ "$(cat "$P/supervision-branch-effort")" = medium ]; then ok "supervision presets have the standard content"; else bad "supervision preset wrong"; fi
 
@@ -27,7 +26,7 @@ if [ "$(cat "$P/supervision-branch-model")" = anthropic/claude-haiku-5-5 ] && [ 
 bh="$TMP/bhome"; mkdir -p "$bh/config"; cp "$P/brief-include.md" "$bh/config/"
 if FM_HOME="$bh" "$HERE/../bin/fm-brief.sh" inc some-proj --scout >/dev/null 2>&1 &&
   b="$bh/data/inc/brief.md" && grep -q '^# Home brief additions$' "$b" &&
-  sed -n '/^# Home brief additions$/,$p' "$b" | grep -q 'flank.github.io/flank/pr_titles'; then ok "the brief builder emits the brief-include preset"; else bad "brief builder did not emit the brief-include preset"; fi
+  sed -n '/^# Home brief additions$/,$p' "$b" | grep -q '^### Pull request titles and descriptions$'; then ok "the brief builder emits the brief-include preset"; else bad "brief builder did not emit the brief-include preset"; fi
 
 # The dispatch preset must pass Firstmate's own crew-dispatch validation (bootstrap prints CREW_DISPATCH: for a bad file).
 vh="$TMP/vhome"; mkdir -p "$vh/config"
@@ -74,8 +73,8 @@ gaps=0
 for want in 'pi package npm:cc-safety-net' 'pi package git:github.com/DietrichGebert/ponytail' 'primary-session pi package npm:pi-context-view@0.8.4' \
   'primary-session pi package git:github.com/DietrichGebert/ponytail with filters' \
   'primary-session pi package git:github.com/nphuoctho/pi-usage-bars@e595440' 'pi codemode' 'herdr integration for pi' 'config/crew-dispatch.json' 'config/brief-include.md' \
-  'config/supervision-branch-model' 'config/supervision-branch-effort' 'config/park-on-review' 'config/auto-land' 'config/pr-register-scan' '.pi-lens.json' \
-  'git exclude entry .pi/settings.json' 'git exclude entry .pi-lens.json' 'remove user-level npm:pi-lens'; do
+  'config/supervision-branch-model' 'config/supervision-branch-effort' 'config/park-on-review' 'config/auto-land' 'config/pr-register-scan' \
+  'git exclude entry .pi/settings.json' 'remove user-level npm:pi-lens'; do
   grep -q "MISSING: .*$want" <<<"$out" || { gaps=1; bad "--check did not report: $want" "$out"; }
 done
 if grep -q 'remove user-level npm:pi-markdown-preview' <<<"$out"; then gaps=1; bad "a project-level package was treated as user-level"; fi
@@ -89,14 +88,14 @@ out="$(run)"
 S="$sb/fm/.pi/settings.json"
 if [ "$(jq -c '.packages' "$S")" = "$(jq -c '.packages' "$P/pi-primary-settings.json")" ] && ! jq -e 'has("defaultTools")' "$S" >/dev/null &&
   jq -e '.theme == "dark" and .defaultTools == ["-write", "+codemode"]' "$sb/.pi/agent/settings.json" >/dev/null &&
-  grep -qx 'pi install npm:cc-safety-net' "$sb/log" && grep -qx 'pi install -l -a npm:pi-lens@4.5.1' "$sb/log" && grep -qx 'pi install git:github.com/DietrichGebert/ponytail' "$sb/log" &&
+  grep -qx 'pi install npm:cc-safety-net' "$sb/log" && ! grep -q 'pi install -l -a npm:pi-lens' "$sb/log" && grep -qx 'pi install git:github.com/DietrichGebert/ponytail' "$sb/log" &&
   ! grep -q 'pi install npm:pi-web-access' "$sb/log" && grep -qx 'pi remove npm:pi-lens@4.5.0' "$sb/log" &&
   ! grep -q 'pi remove npm:pi-markdown-preview' "$sb/log" && grep -qx 'herdr integration install pi' "$sb/log"; then ok "a real run installs each package at the right level, codemode at user level, Ponytail off in the primary"; else bad "real run package handling wrong" "$out"; fi
 if cmp -s "$P/brief-include.md" "$sb/fm/config/brief-include.md" && cmp -s "$P/crew-dispatch.json" "$sb/fm/config/crew-dispatch.json" &&
-  cmp -s "$P/supervision-branch-effort" "$sb/fm/config/supervision-branch-effort" && cmp -s "$P/pi-lens-config.json" "$sb/fm/.pi-lens.json" &&
+  cmp -s "$P/supervision-branch-effort" "$sb/fm/config/supervision-branch-effort" &&
   [ -e "$sb/fm/config/park-on-review" ] && [ -e "$sb/fm/config/auto-land" ] && [ -e "$sb/fm/config/pr-register-scan" ]; then ok "a real run seeds the config files and option flags"; else bad "config not seeded" "$out"; fi
 if [ "$(cat "$sb/fm/config/supervision-branch-model")" = custom-model ] && grep -q 'config/supervision-branch-model differs from the preset' <<<"$out"; then ok "a changed config file is kept and noted"; else bad "changed config file mishandled" "$out"; fi
-if git -C "$sb/fm" status --porcelain -- .pi .pi-lens.json | grep -q .; then bad "primary-only files are not excluded from git" "$(git -C "$sb/fm" status --porcelain)"; else ok "primary-only files are excluded from git"; fi
+if git -C "$sb/fm" status --porcelain -- .pi | grep -q .; then bad "primary-only files are not excluded from git" "$(git -C "$sb/fm" status --porcelain)"; else ok "primary-only files are excluded from git"; fi
 : >"$sb/log"; before="$(snap)"
 # The stubs keep no state, so describe the machine after the first run.
 PI_LIST='User packages:\n  npm:pi-web-access\n    /x\n  npm:cc-safety-net\n    /x\n  git:github.com/DietrichGebert/ponytail\n    /x\n'
@@ -129,7 +128,7 @@ rm -rf "$sb/fm2"; mkdir -p "$sb/fm2"; git -C "$sb/fm2" init -q
 mk_min "${BASIC[@]}" jq node gh curl
 rm -f "$sb/min/tasks-axi"
 out="$(run_min)"; rc=$?
-if [ "$rc" = 1 ] && grep -q 'MISSING: npm' <<<"$out" && grep -q 'MISSING: tasks-axi (npm install -g failed)' <<<"$out" && [ -e "$sb/fm2/config/crew-dispatch.json" ] && [ -e "$sb/fm2/config/auto-land" ] && grep -qx '.pi-lens.json' "$sb/fm2/.git/info/exclude"; then ok "a missing npm is reported and the rest of the setup still runs"; else bad "missing npm aborted the run (exit $rc)" "$out"; fi
+if [ "$rc" = 1 ] && grep -q 'MISSING: npm' <<<"$out" && grep -q 'MISSING: tasks-axi (npm install -g failed)' <<<"$out" && [ -e "$sb/fm2/config/crew-dispatch.json" ] && [ -e "$sb/fm2/config/auto-land" ] && grep -qx '.pi/settings.json' "$sb/fm2/.git/info/exclude"; then ok "a missing npm is reported and the rest of the setup still runs"; else bad "missing npm aborted the run (exit $rc)" "$out"; fi
 rm -rf "$sb/fm2"; mkdir -p "$sb/fm2"; git -C "$sb/fm2" init -q
 mk_min "${BASIC[@]}" node npm gh curl
 out="$(run_min)"; rc=$?
