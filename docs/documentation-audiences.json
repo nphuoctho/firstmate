@@ -650,6 +650,14 @@
       "audience": "operator-current"
     },
     {
+      "path": "setup/README.md",
+      "audience": "operator-current"
+    },
+    {
+      "path": "setup/presets/brief-include.md",
+      "audience": "operator-example"
+    },
+    {
       "path": "skills/stow/SKILL.md",
       "audience": "public-product"
     },
