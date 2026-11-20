@@ -137,6 +137,13 @@ mk_min "${BASIC[@]}" node npm gh curl
 out="$(run_min)"; rc=$?
 if [ "$rc" = 1 ] && grep -q 'MISSING: jq' <<<"$out" && grep -q 'needs both pi and jq' <<<"$out" && [ ! -e "$sb/fm2/.pi" ] && ! grep -q 'command not found' <<<"$out"; then ok "a missing jq is reported and nothing half-written is left"; else bad "missing jq mishandled (exit $rc)" "$out"; fi
 
+# An exclude file without a trailing newline must keep its last rule intact.
+rm -rf "$sb/fm2"; mkdir -p "$sb/fm2"; git -C "$sb/fm2" init -q
+printf '*.log' >"$sb/fm2/.git/info/exclude"
+mk_min "${BASIC[@]}" jq node npm gh curl
+run_min >/dev/null
+if grep -qx '\*.log' "$sb/fm2/.git/info/exclude" && grep -qx '.pi/settings.json' "$sb/fm2/.git/info/exclude"; then ok "an unterminated exclude line is kept intact"; else bad "unterminated exclude line corrupted" "$(cat "$sb/fm2/.git/info/exclude")"; fi
+
 # A failed Herdr integration install or axi `setup hooks` must not end with OK.
 out="$(HERDR_STATUS='pi: not installed (x)\n' HERDR_INSTALL_FAIL=1 run)"; rc=$?
 if [ "$rc" = 1 ] && grep -q 'MISSING: herdr integration for pi (install failed)' <<<"$out" && grep -qx 'INCOMPLETE' <<<"$out"; then ok "a failed herdr integration install ends INCOMPLETE"; else bad "failed herdr install mishandled (exit $rc)" "$out"; fi

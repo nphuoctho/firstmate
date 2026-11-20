@@ -180,7 +180,7 @@ if excl="$(git -C "$HOME_DIR" rev-parse --git-path info/exclude 2>/dev/null)" &&
   case "$excl" in /*) ;; *) excl="$HOME_DIR/$excl" ;; esac
   for pat in .pi/settings.json .pi/npm/ .pi/git/; do
     grep -qxF "$pat" "$excl" 2>/dev/null || {
-      if act "git exclude entry $pat"; then mkdir -p "$(dirname "$excl")"; printf '%s\n' "$pat" >>"$excl"; fi
+      if act "git exclude entry $pat"; then mkdir -p "$(dirname "$excl")"; [ ! -s "$excl" ] || [ -z "$(tail -c1 "$excl")" ] || echo >>"$excl"; printf '%s\n' "$pat" >>"$excl"; fi
     }
   done
 fi
