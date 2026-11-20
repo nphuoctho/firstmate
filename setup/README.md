@@ -63,6 +63,7 @@ The same file also lists Ponytail with its extensions and skills switched off.
 That keeps Ponytail on for workers and no-mistakes, which use the user-level copy, and off in the primary session.
 The four packages above cost tokens or memory in every session they load in.
 So the script removes a user-level copy if it finds one, and never installs them at user level.
+`pi-lens` is dropped entirely: the script removes any user-level copy and any copy in the home's `.pi/settings.json`, and leaves an old `.pi-lens.json` alone.
 `.pi/settings.json`, `.pi/npm/` and `.pi/git/` are added to the home's `.git/info/exclude`, so they are never committed.
 
 ### Firstmate config

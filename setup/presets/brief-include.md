@@ -37,9 +37,21 @@ Write every commit message in this shape:
 
 Examples:
 
+A one-line commit:
+
 ```
 feat(lang): add Polish language
+```
+
+Another one-line commit:
+
+```
 docs: correct spelling of CHANGELOG
+```
+
+A full commit with a body and a footer:
+
+```
 fix: prevent racing of requests
 
 Introduce a request id and dismiss responses other than the latest one.

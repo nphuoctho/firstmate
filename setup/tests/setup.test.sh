@@ -57,6 +57,8 @@ case "\$1 \$2" in
   "install -l") [ "\$3" = -a ] || { echo "Project is not trusted. Use --approve to modify local package config." >&2; exit 1; }
     echo "pi \$*" >>"$sb/log"; mkdir -p .pi; [ -s .pi/settings.json ] || echo '{}' >.pi/settings.json
     jq --arg p "\$4" '.packages += [\$p]' .pi/settings.json >.pi/s.tmp && mv .pi/s.tmp .pi/settings.json ;;
+  "remove -l") echo "pi \$*" >>"$sb/log"
+    jq --arg p "\$4" '.packages -= [\$p]' .pi/settings.json >.pi/s.tmp && mv .pi/s.tmp .pi/settings.json ;;
   *) echo "pi \$*" >>"$sb/log" ;;
 esac
 EOF
@@ -67,6 +69,7 @@ HERDR_STATUS='pi: not installed (x)\n'
 run() { HOME="$sb" FM_HOME="$sb/fm" PATH="$sb/bin:$PATH" HERDR_STATUS="$HERDR_STATUS" PI_LIST="$PI_LIST" "$HERE/setup.sh" ${1:+"$1"} 2>&1; }
 snap() { (cd "$sb" && find fm -type f -not -path '*/.git/*' | sort | xargs -r cksum; cksum <fm/.git/info/exclude 2>/dev/null); }
 
+mkdir -p "$sb/fm/.pi"; printf '{"packages":["npm:pi-lens@4.5.1"]}\n' >"$sb/fm/.pi/settings.json"
 before="$(snap)"
 out="$(run --check)"
 gaps=0
@@ -74,12 +77,12 @@ for want in 'pi package npm:cc-safety-net' 'pi package git:github.com/DietrichGe
   'primary-session pi package git:github.com/DietrichGebert/ponytail with filters' \
   'primary-session pi package git:github.com/nphuoctho/pi-usage-bars@e595440' 'pi codemode' 'herdr integration for pi' 'config/crew-dispatch.json' 'config/brief-include.md' \
   'config/supervision-branch-model' 'config/supervision-branch-effort' 'config/park-on-review' 'config/auto-land' 'config/pr-register-scan' \
-  'git exclude entry .pi/settings.json' 'remove user-level npm:pi-lens'; do
+  'git exclude entry .pi/settings.json' 'remove user-level npm:pi-lens' 'remove home-level npm:pi-lens@4.5.1'; do
   grep -q "MISSING: .*$want" <<<"$out" || { gaps=1; bad "--check did not report: $want" "$out"; }
 done
 if grep -q 'remove user-level npm:pi-markdown-preview' <<<"$out"; then gaps=1; bad "a project-level package was treated as user-level"; fi
 [ "$gaps" = 0 ] && ok "--check reports every gap"
-if [ "$before" = "$(snap)" ] && [ ! -e "$sb/fm/.pi" ] && [ ! -e "$sb/.pi/agent/settings.json" ] && ! grep -Eq 'install|remove' "$sb/log" 2>/dev/null; then ok "--check writes nothing"; else bad "--check changed the sandbox"; fi
+if [ "$before" = "$(snap)" ] && [ -z "$(jq -r '.packages[]' "$sb/fm/.pi/settings.json" | grep -v pi-lens)" ] && [ ! -e "$sb/.pi/agent/settings.json" ] && ! grep -Eq 'install|remove' "$sb/log" 2>/dev/null; then ok "--check writes nothing"; else bad "--check changed the sandbox"; fi
 
 # A real run applies everything. A changed file survives with a drift note, and a second run changes nothing.
 mkdir -p "$sb/fm/config" "$sb/.pi/agent"; printf 'custom-model\n' >"$sb/fm/config/supervision-branch-model"
@@ -89,7 +92,7 @@ S="$sb/fm/.pi/settings.json"
 if [ "$(jq -c '.packages' "$S")" = "$(jq -c '.packages' "$P/pi-primary-settings.json")" ] && ! jq -e 'has("defaultTools")' "$S" >/dev/null &&
   jq -e '.theme == "dark" and .defaultTools == ["-write", "+codemode"]' "$sb/.pi/agent/settings.json" >/dev/null &&
   grep -qx 'pi install npm:cc-safety-net' "$sb/log" && ! grep -q 'pi install -l -a npm:pi-lens' "$sb/log" && grep -qx 'pi install git:github.com/DietrichGebert/ponytail' "$sb/log" &&
-  ! grep -q 'pi install npm:pi-web-access' "$sb/log" && grep -qx 'pi remove npm:pi-lens@4.5.0' "$sb/log" &&
+  ! grep -q 'pi install npm:pi-web-access' "$sb/log" && grep -qx 'pi remove npm:pi-lens@4.5.0' "$sb/log" && grep -qx 'pi remove -l -a npm:pi-lens@4.5.1' "$sb/log" &&
   ! grep -q 'pi remove npm:pi-markdown-preview' "$sb/log" && grep -qx 'herdr integration install pi' "$sb/log"; then ok "a real run installs each package at the right level, codemode at user level, Ponytail off in the primary"; else bad "real run package handling wrong" "$out"; fi
 if cmp -s "$P/brief-include.md" "$sb/fm/config/brief-include.md" && cmp -s "$P/crew-dispatch.json" "$sb/fm/config/crew-dispatch.json" &&
   cmp -s "$P/supervision-branch-effort" "$sb/fm/config/supervision-branch-effort" &&

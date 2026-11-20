@@ -25,6 +25,7 @@ NPM_CLIS=(gh-axi chrome-devtools-axi lavish-axi quota-axi tasks-axi)
 PI_PACKAGES=(npm:pi-web-access npm:cc-safety-net git:github.com/DietrichGebert/ponytail)
 # Primary-only packages (presets/pi-primary-settings.json) cost tokens or memory in every session they load in,
 # so they are installed for the Firstmate home only. setup.sh removes any user-level copy.
+# pi-lens is the exception: it is dropped from the primary preset too, so a user-level or home-level copy is removed.
 NOT_USER_LEVEL=(npm:pi-lens npm:@juicesharp/rpiv-todo npm:pi-markdown-preview npm:pi-context-view git:github.com/nphuoctho/pi-usage-bars)
 bad=0
 
@@ -131,6 +132,12 @@ if command -v pi >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
       }
     fi
   done < <(jq -c '.packages[]' "$PRESETS/pi-primary-settings.json")
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    if act "remove home-level $p (pi-lens is no longer used, in $settings)"; then
+      run_or_miss "remove home-level $p" bash -c 'cd "$1" && pi remove -l -a "$2"' _ "$HOME_DIR" "$p"
+    fi
+  done < <(grep -E '^npm:pi-lens(@.*)?$' <<<"$have" || true)
 else
   say "skipped: Pi package check (needs both pi and jq installed, so the packages cannot be listed)"
 fi
