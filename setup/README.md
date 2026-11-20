@@ -56,15 +56,15 @@ They are written to this home's `.pi/settings.json` with `pi install -l`, which 
 | --- | --- |
 | `pi-markdown-preview` | Markdown previews |
 | `pi-context-view@0.8.4` | `/context` |
-| `pi-lens@4.5.1` | live code feedback; auto-format and auto-fix are off (see `.pi-lens.json`) |
 | `@juicesharp/rpiv-todo@2.15.0` | a todo list tool |
 | `nphuoctho/pi-usage-bars` (pinned commit) | `/usage` |
 
 The same file also lists Ponytail with its extensions and skills switched off.
 That keeps Ponytail on for workers and no-mistakes, which use the user-level copy, and off in the primary session.
-The five packages above cost tokens or memory in every session they load in.
+The four packages above cost tokens or memory in every session they load in.
 So the script removes a user-level copy if it finds one, and never installs them at user level.
-`.pi/settings.json`, `.pi/npm/`, `.pi/git/` and `.pi-lens.json` are added to the home's `.git/info/exclude`, so they are never committed.
+`pi-lens` is dropped entirely: the script removes any user-level copy and any copy in the home's `.pi/settings.json`, and leaves an old `.pi-lens.json` alone.
+`.pi/settings.json`, `.pi/npm/` and `.pi/git/` are added to the home's `.git/info/exclude`, so they are never committed.
 
 ### Firstmate config
 
@@ -82,9 +82,11 @@ When it differs from the preset, setup prints a `diff` command so you can compar
 ### Git rules
 
 `brief-include.md` tells every worker to follow these rules, and to run whatever checks the project itself defines before reporting done:
-- [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages;
-- [Conventional Branch](https://conventionalbranch.org/) for branch names (Firstmate picks the name);
-- pull request titles in the Conventional Commits form, as described at https://flank.github.io/flank/pr_titles/, written in plain English.
+- [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages;
+- [Conventional Branch 1.1.0](https://conventionalbranch.org/) for branch names (Firstmate picks the name);
+- pull request titles in the Conventional Commits form, without body or footers, written in plain English.
+
+The include summarizes these rules, so workers do not fetch the linked pages.
 
 ### Worker model choice
 
